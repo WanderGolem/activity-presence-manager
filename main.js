@@ -393,6 +393,20 @@ function normalizeUpdateProgress(progress) {
   };
 }
 
+function getUpdateErrorMessage(err) {
+  const raw = String(err?.message || err || "update_error");
+
+  if (/latest\.ya?ml/i.test(raw) && /404|Cannot find/i.test(raw)) {
+    return t("log.updateMetadataMissing", "No update metadata found in the latest GitHub release.");
+  }
+
+  if (/Unable to find latest version|ERR_UPDATER_LATEST_VERSION_NOT_FOUND|406/.test(raw)) {
+    return t("log.updateReleaseMissing", "No readable production release was found on GitHub.");
+  }
+
+  return raw.split(/\r?\n/)[0].slice(0, 240);
+}
+
 function emitUpdaterState(status, data = {}) {
   updaterState = {
     ...updaterState,
@@ -454,7 +468,7 @@ function setupAutoUpdater() {
   });
 
   autoUpdater.on("error", (err) => {
-    const message = err?.message || String(err || "update_error");
+    const message = getUpdateErrorMessage(err);
     emitUpdaterState("error", { error: message, progress: null });
     sendLog(`${t("log.updateError", "Update error")}: ${message}`);
   });
@@ -483,7 +497,7 @@ async function checkForUpdates(options = {}) {
       info: normalizeUpdateInfo(result?.updateInfo)
     };
   } catch (err) {
-    const message = err?.message || String(err || "update_check_failed");
+    const message = getUpdateErrorMessage(err);
     const state = emitUpdaterState("error", { error: message, progress: null });
     return { ok: false, error: message, state };
   }
@@ -510,7 +524,7 @@ async function downloadUpdate() {
     const paths = await autoUpdater.downloadUpdate();
     return { ok: true, paths, state: updaterState };
   } catch (err) {
-    const message = err?.message || String(err || "update_download_failed");
+    const message = getUpdateErrorMessage(err);
     const state = emitUpdaterState("error", { error: message, progress: null });
     return { ok: false, error: message, state };
   }

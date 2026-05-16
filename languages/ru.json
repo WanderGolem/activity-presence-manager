@@ -155,6 +155,8 @@
   "log.updateDownloaded": "Обновление загружено. Перезапустите приложение для установки.",
   "log.updateError": "Ошибка обновления",
   "log.updateUnavailableDev": "Обновления доступны только в установленном приложении.",
+  "log.updateMetadataMissing": "В последнем релизе GitHub не найдены метаданные обновления.",
+  "log.updateReleaseMissing": "На GitHub не найден читаемый production-релиз.",
   "log.validationFailed": "Пожалуйста, исправьте отмеченные поля.",
   "log.presetSaved": "Пресет сохранен",
   "log.presetLoaded": "Пресет загружен",

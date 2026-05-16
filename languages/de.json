@@ -155,6 +155,8 @@
   "log.updateDownloaded": "Update heruntergeladen. Zum Installieren neu starten.",
   "log.updateError": "Update-Fehler",
   "log.updateUnavailableDev": "Updates sind nur in der installierten App verfügbar.",
+  "log.updateMetadataMissing": "Im neuesten GitHub-Release wurden keine Update-Metadaten gefunden.",
+  "log.updateReleaseMissing": "Auf GitHub wurde kein lesbarer Production-Release gefunden.",
   "log.validationFailed": "Bitte korrigiere die markierten Felder.",
   "log.presetSaved": "Preset gespeichert",
   "log.presetLoaded": "Preset geladen",

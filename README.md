@@ -10,7 +10,7 @@ Desktop app for managing Discord Rich Presence for Twitch, YouTube, and custom a
 - YouTube and custom activity modes
 - Presets, preview, stream info, app language, and activity language
 - Windows installer and portable build through electron-builder
-- GitHub Releases based updater through electron-updater
+- GitHub Releases based updater through electron-updater using `latest.yml`
 
 ## Development
 
@@ -60,20 +60,23 @@ git tag v1.4.1
 git push origin v1.4.1
 ```
 
-The GitHub Actions workflow builds the Windows installer and uploads the updater files to the release.
+The GitHub Actions workflow builds the Windows installer and uploads the updater files to the release. The app reads update metadata from:
 
-If the GitHub repository is not `WanderGolem/activity-presence-manager`, update `repository.url` and `build.publish` in `package.json`.
+```text
+https://github.com/WanderGolem/activity-presence-manager/releases/latest/download/latest.yml
+```
+
+If the GitHub repository is not `WanderGolem/activity-presence-manager`, update `repository.url` and the generic `build.publish.url` in `package.json`.
 
 ## Local Release Publishing
 
-To publish from your own machine instead of GitHub Actions, create a GitHub token with release permissions and run:
+To build from your own machine instead of GitHub Actions, run:
 
 ```powershell
-$env:GH_TOKEN="YOUR_TOKEN"
 npm.cmd run release
 ```
 
-Never commit `.env`, tokens, or code signing certificates.
+Then upload the files from `dist/` to a GitHub Release manually. Never commit `.env`, tokens, or code signing certificates.
 
 ## Code Signing
 

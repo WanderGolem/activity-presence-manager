@@ -1,6 +1,6 @@
 {
   "name": "activity-presence-manager",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "Desktop app for managing Discord Rich Presence",
   "main": "main.js",
   "productName": "Activity Presence Manager",
@@ -14,7 +14,7 @@
     "start": "electron .",
     "pack": "set ELECTRON_BUILDER_CACHE=.cache\\electron-builder&& electron-builder --win --dir",
     "dist": "set ELECTRON_BUILDER_CACHE=.cache\\electron-builder&& electron-builder --win --publish never",
-    "release": "set ELECTRON_BUILDER_CACHE=.cache\\electron-builder&& electron-builder --win --publish always"
+    "release": "npm run dist"
   },
   "dependencies": {
     "discord-rpc": "^4.0.1",
@@ -60,6 +60,7 @@
       "icon": "assets/icon.ico"
     },
     "nsis": {
+      "artifactName": "Activity-Presence-Manager-Setup-${version}-${arch}.${ext}",
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
@@ -67,11 +68,13 @@
       "shortcutName": "Activity Presence Manager",
       "deleteAppDataOnUninstall": false
     },
+    "portable": {
+      "artifactName": "Activity-Presence-Manager-Portable-${version}-${arch}.${ext}"
+    },
     "publish": [
       {
-        "provider": "github",
-        "owner": "WanderGolem",
-        "repo": "activity-presence-manager"
+        "provider": "generic",
+        "url": "https://github.com/WanderGolem/activity-presence-manager/releases/latest/download"
       }
     ]
   }
