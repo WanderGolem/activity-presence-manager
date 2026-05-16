@@ -1,0 +1,1011 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Activity Presence Manager</title>
+    <link rel="stylesheet" href="./styles/app.css" />
+</head>
+<body data-theme="dark">
+  <div class="app-shell">
+    <div class="titlebar">
+      <div class="titlebar-left">
+        <img class="titlebar-app-icon" id="titlebarAppIcon" src="./assets/icon.ico" alt="App Icon" />
+      </div>
+
+      <div class="titlebar-title" id="windowTitleText">TITLE</div>
+
+      <div class="window-controls">
+        <button class="window-btn" id="reloadBtn" type="button">
+          <img src="./assets/icons/reload.svg" alt="" aria-hidden="true" />
+        </button>
+        <button class="window-btn" id="minimizeBtn" type="button">
+          <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+            <path d="M3 8.5h10"></path>
+          </svg>
+        </button>
+        <button class="window-btn" id="maximizeBtn" type="button">
+          <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+            <rect x="3.25" y="3.25" width="9.5" height="9.5" rx="0.8"></rect>
+          </svg>
+        </button>
+        <button class="window-btn close" id="closeBtn" type="button">
+          <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+            <path d="M4 4l8 8M12 4 4 12"></path>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="main-layout">
+      <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+          <div class="sidebar-title">Navigation</div>
+          <button class="sidebar-collapse" id="collapseSidebarBtn" type="button"></button>
+        </div>
+
+        <nav class="sidebar-nav">
+          <button class="nav-btn active" id="menuDashboardBtn">
+            <span class="nav-icon">
+              <img src="./assets/icons/dashbord.svg" alt="" aria-hidden="true" />
+            </span>
+            <span class="nav-text">Dashboard</span>
+          </button>
+
+          <button class="nav-btn" id="menuSettingsBtn">
+            <span class="nav-icon">
+              <img src="./assets/icons/settings.svg" alt="" aria-hidden="true" />
+            </span>
+            <span class="nav-text">Settings</span>
+          </button>
+
+          <button class="nav-btn" id="menuPresetsBtn">
+            <span class="nav-icon">
+              <img src="./assets/icons/new_preset.svg" alt="" aria-hidden="true" />
+            </span>
+            <span class="nav-text">Presets</span>
+          </button>
+
+          <button class="nav-btn" id="menuHelpBtn">
+            <span class="nav-icon">
+              <img src="./assets/icons/help.svg" alt="" aria-hidden="true" />
+            </span>
+            <span class="nav-text">Help</span>
+          </button>
+        </nav>
+
+        <div class="sidebar-divider"></div>
+
+        <div class="preset-section">
+          <div class="sidebar-title" id="sidebarPresetsTitle">Saved Presets</div>
+          <div id="presetList" class="preset-list"></div>
+        </div>
+
+        <div class="sidebar-preview">
+          <div class="preview-top">
+            <div class="preview-heading">
+              <div class="preview-title-small" id="previewSectionTitle">Preview</div>
+              <div class="preview-subtitle" id="previewSubtitle">Discord Rich Presence</div>
+            </div>
+
+            <label class="preview-switch">
+              <input type="checkbox" id="previewLiveSwitch" />
+              <span class="preview-switch-track">
+                <span class="preview-switch-label preview-switch-label-off" id="previewOfflineLabel">Offline</span>
+                <span class="preview-switch-label preview-switch-label-live" id="previewLiveLabel">Live</span>
+                <span class="preview-switch-thumb"></span>
+              </span>
+            </label>
+          </div>
+
+          <div class="preview-wrapper">
+            <div class="preview-card" id="previewCard">
+              <div class="preview-card-topline">
+                <span class="preview-card-label" id="previewAppLabel">Activity Presence Manager</span>
+                <span class="preview-badge offline" id="previewBadge">OFFLINE</span>
+              </div>
+
+              <div class="preview-main">
+                <div class="preview-avatar-wrap">
+                  <img id="previewLargeImage" class="preview-large" src="./assets/icon.ico" alt="" />
+                  <img id="previewSmallImage" class="preview-small" src="./assets/icon.ico" alt="" />
+                  <div id="previewStatusDot" class="preview-status-dot"></div>
+                </div>
+
+                <div class="preview-content">
+                  <div class="preview-user" id="previewTitle">...</div>
+                  <div class="preview-line-1" id="previewUser"></div>
+                  <div class="preview-line-2" id="previewDetails">--</div>
+                  <div class="preview-line-3" id="previewState"></div>
+                </div>
+              </div>
+
+              <div class="preview-buttons" id="previewButtons" style="display: none;">
+                <button class="preview-btn" id="previewStreamBtn"></button>
+                <button class="preview-btn secondary" id="previewCommunityBtn"></button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <main class="content-area">
+        <div class="wrap">
+          <h1 id="appTitle">Dashboard</h1>
+          <div class="subtitle" id="appSubtitle"></div>
+
+          <div class="panel active" id="panel-dashboard">
+            <div class="grid">
+              <div class="card full" id="controlCard">
+                <h2 id="sectionControl"></h2>
+
+                <div class="toolbar">
+                  <button class="action btn-save" id="saveBtn"></button>
+                  <button class="action btn-test" id="testBtn"></button>
+                  <button class="action btn-start" id="startBtn"></button>
+                  <button class="action btn-stop" id="stopBtn"></button>
+                  <button class="action btn-import" id="importBtn"></button>
+                  <button class="action btn-export" id="exportBtn"></button>
+                </div>
+
+                <div class="statusbar">
+                  <div class="badge">
+                    <span id="statusLabel"></span> <span id="statusText">Ready</span>
+                  </div>
+                </div>
+
+                <div class="log" id="logBox"></div>
+              </div>
+
+              <div class="card full stream-info-card" id="streamInfoCard">
+                <h2 id="sectionStreamInfo"></h2>
+
+                <div class="stream-info-grid">
+                  <div class="stream-info-item">
+                    <div class="stream-info-label" id="label_streamInfoPresenceStatus"></div>
+                    <div class="stream-info-value" id="streamInfoPresenceStatusValue">Streamer</div>
+                  </div>
+
+                  <div class="stream-info-item">
+                    <div class="stream-info-label" id="label_streamInfoCurrentGame"></div>
+                    <div class="stream-info-value" id="streamInfoCurrentGameValue">-</div>
+                  </div>
+
+                  <div class="stream-info-item">
+                    <div class="stream-info-label" id="label_streamInfoCurrentViewers"></div>
+                    <div class="stream-info-value" id="streamInfoCurrentViewersValue">0</div>
+                  </div>
+
+                  <div class="stream-info-item">
+                    <div class="stream-info-label" id="label_streamInfoLiveDuration"></div>
+                    <div class="stream-info-value" id="streamInfoLiveDurationValue">--</div>
+                  </div>
+
+                  <div class="stream-info-item">
+                    <div class="stream-info-label" id="label_streamInfoStreamStatus"></div>
+                    <div class="stream-info-value offline" id="streamInfoStreamStatusValue">Offline</div>
+                  </div>
+
+                  <div class="stream-info-item wide stream-info-title-item">
+                    <div class="stream-info-label" id="label_streamInfoStreamTitle"></div>
+                    <div class="stream-info-value stream-info-value-large" id="streamInfoStreamTitleValue">-</div>
+                  </div>
+
+                  <div class="stream-info-item">
+                    <div class="stream-info-label" id="label_streamInfoPresetSource"></div>
+                    <div class="stream-info-value" id="streamInfoPresetSourceValue">Twitch</div>
+                  </div>
+
+                  <div class="stream-info-item stream-info-extra" id="streamInfoCreatedAtItem">
+                    <div class="stream-info-label" id="label_streamInfoCreatedAt"></div>
+                    <div class="stream-info-value" id="streamInfoCreatedAtValue">-</div>
+                  </div>
+
+                  <div class="stream-info-item stream-info-extra" id="streamInfoLanguageItem">
+                    <div class="stream-info-label" id="label_streamInfoLanguage"></div>
+                    <div class="stream-info-value" id="streamInfoLanguageValue">-</div>
+                  </div>
+
+                  <div class="stream-info-item stream-info-extra" id="streamInfoBroadcasterTypeItem">
+                    <div class="stream-info-label" id="label_streamInfoBroadcasterType"></div>
+                    <div class="stream-info-value" id="streamInfoBroadcasterTypeValue">-</div>
+                  </div>
+
+                  <div class="stream-info-item stream-info-extra" id="streamInfoTagsItem">
+                    <div class="stream-info-label" id="label_streamInfoTags"></div>
+                    <div class="stream-info-value" id="streamInfoTagsValue">-</div>
+                  </div>
+
+                  <div class="stream-info-item stream-info-extra" id="streamInfoBrandedContentItem" hidden>
+                    <div class="stream-info-label" id="label_streamInfoBrandedContent"></div>
+                    <div class="stream-info-value" id="streamInfoBrandedContentValue">-</div>
+                  </div>
+
+                  <div class="stream-info-item stream-info-extra wide stream-info-description-item" id="streamInfoDescriptionItem">
+                    <div class="stream-info-label" id="label_streamInfoDescription"></div>
+                    <div class="stream-info-value compact" id="streamInfoDescriptionValue">-</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="card full preset-editor-card" id="presetEditorCard">
+                <h2 id="sectionPresetEditor" hidden></h2>
+
+                <div class="field" id="field_presetEditorName">
+                  <label for="presetEditorName" id="label_presetEditorName"></label>
+                  <input id="presetEditorName" type="text" />
+                  <div class="field-error" id="error_presetEditorName"></div>
+                </div>
+
+                <div class="toolbar preset-editor-actions">
+                  <button class="action btn-save" id="saveEditedPresetBtn"></button>
+                  <button class="action btn-import" id="closePresetEditBtn"></button>
+                  <button class="action btn-import" id="presetImportBtn"></button>
+                  <button class="action btn-export" id="presetExportBtn"></button>
+                  <button class="action btn-stop" id="deleteEditedPresetBtn"></button>
+                </div>
+              </div>
+
+              <div class="card full preset-editor-card preset-editor-source-card" id="presetEditorSourceCard">
+                <div class="field preset-editor-source" id="field_presetEditorSource">
+                  <label id="label_presetEditorSource"></label>
+
+                  <div class="source-mode-grid" id="sourceModeGrid">
+                    <button type="button" class="source-mode-btn" id="sourceModeTwitch" data-source="twitch">
+                      <span class="source-mode-head">
+                        <img class="source-mode-icon" src="./assets/icons/twitch.svg" alt="" aria-hidden="true" />
+                        <span class="source-mode-title" id="sourceModeTitleTwitch">Twitch</span>
+                      </span>
+                      <span class="source-mode-desc" id="sourceModeDescTwitch">Stream-Monitoring ?ber Twitch API</span>
+                    </button>
+                    <button type="button" class="source-mode-btn" id="sourceModeYouTube" data-source="youtube">
+                      <span class="source-mode-head">
+                        <img class="source-mode-icon" src="./assets/icons/youtube.svg" alt="" aria-hidden="true" />
+                        <span class="source-mode-title" id="sourceModeTitleYouTube">YouTube</span>
+                      </span>
+                      <span class="source-mode-desc" id="sourceModeDescYouTube">Livestream-Erkennung ?ber YouTube Data API</span>
+                    </button>
+                    <button type="button" class="source-mode-btn" id="sourceModeCustom" data-source="custom">
+                      <span class="source-mode-head">
+                        <img class="source-mode-icon" src="./assets/icons/discord.svg" alt="" aria-hidden="true" />
+                        <span class="source-mode-title" id="sourceModeTitleCustom">Custom Activity</span>
+                      </span>
+                      <span class="source-mode-desc" id="sourceModeDescCustom">Freie Discord Rich Presence mit Typ, Timestamps, Bildern und Buttons</span>
+                    </button>
+                  </div>
+
+                  <div class="hint" id="youtubeQuotaHint" hidden></div>
+                  <input id="activitySource" type="hidden" value="twitch" />
+                </div>
+              </div>
+
+              <div class="card editable-card section-locked" id="twitchCard">
+                <div class="card-header">
+                  <h2 id="sectionTwitch"></h2>
+                  <button type="button" class="section-edit-btn" id="editTwitchBtn"><img src="./assets/icons/edit.svg" alt="" aria-hidden="true" /></button>
+                </div>
+
+                <div class="field" id="field_twitchApiMode">
+                  <label id="label_twitchApiMode"></label>
+                  <div class="source-mode-grid twitch-api-mode-grid" id="twitchApiModeGrid">
+                    <button type="button" class="source-mode-btn" id="twitchApiModeManaged" data-twitch-api-mode="managed">
+                      <span class="source-mode-head">
+                        <img class="source-mode-icon" src="./assets/icons/twitch.svg" alt="" aria-hidden="true" />
+                        <span class="source-mode-title" id="twitchApiModeManagedTitle">Managed API</span>
+                      </span>
+                      <span class="source-mode-desc" id="twitchApiModeManagedDesc">Uses the built-in Twitch status API.</span>
+                    </button>
+                    <button type="button" class="source-mode-btn" id="twitchApiModeOfficial" data-twitch-api-mode="official">
+                      <span class="source-mode-head">
+                        <img class="source-mode-icon" src="./assets/icons/twitch.svg" alt="" aria-hidden="true" />
+                        <span class="source-mode-title" id="twitchApiModeOfficialTitle">Own Twitch app</span>
+                      </span>
+                      <span class="source-mode-desc" id="twitchApiModeOfficialDesc">Use your own Twitch Client ID and Secret.</span>
+                    </button>
+                  </div>
+                  <input id="twitchApiMode" type="hidden" value="managed" />
+                  <div class="hint" id="twitchApiModeHint"></div>
+                </div>
+
+                <div class="field" id="field_twitchClientId">
+                  <label for="twitchClientId" id="label_twitchClientId"></label>
+                  <input id="twitchClientId" type="text" />
+                  <div class="field-error" id="error_twitchClientId"></div>
+                </div>
+
+                <div class="field" id="field_twitchClientSecret">
+                  <label for="twitchClientSecret" id="label_twitchClientSecret"></label>
+                  <div class="password-wrap">
+                    <input id="twitchClientSecret" type="password" />
+                    <button type="button" class="mini-btn" id="toggleSecretBtn"></button>
+                  </div>
+                  <div class="field-error" id="error_twitchClientSecret"></div>
+                </div>
+
+                <div class="field" id="field_streamerLogin">
+                  <label for="streamerLogin" id="label_streamerLogin"></label>
+                  <input id="streamerLogin" type="text" placeholder="e.g. streamername" />
+                  <div class="field-error" id="error_streamerLogin"></div>
+                </div>
+              </div>
+
+              <div class="card editable-card section-locked" id="youtubeCard" hidden>
+                <div class="card-header">
+                  <h2 id="sectionYouTube"></h2>
+                  <button type="button" class="section-edit-btn" id="editYoutubeBtn"><img src="./assets/icons/edit.svg" alt="" aria-hidden="true" /></button>
+                </div>
+
+                <div class="field" id="field_youtubeApiKey">
+                  <label for="youtubeApiKey" id="label_youtubeApiKey"></label>
+                  <input id="youtubeApiKey" type="text" />
+                  <div class="field-error" id="error_youtubeApiKey"></div>
+                </div>
+
+                <div class="field" id="field_youtubeChannel">
+                  <label for="youtubeChannel" id="label_youtubeChannel"></label>
+                  <input id="youtubeChannel" type="text" placeholder="@channel, UC..., or https://youtube.com/..." />
+                  <div class="field-error" id="error_youtubeChannel"></div>
+                </div>
+              </div>
+
+              <div class="card full editable-card section-locked" id="customCard" hidden>
+                <div class="card-header">
+                  <h2 id="sectionCustomActivity"></h2>
+                  <button type="button" class="section-edit-btn" id="editCustomBtn"><img src="./assets/icons/edit.svg" alt="" aria-hidden="true" /></button>
+                </div>
+
+                <div class="custom-card-grid">
+                  <div class="field" id="field_customDisplayName">
+                    <label for="customDisplayName" id="label_customDisplayName"></label>
+                    <input id="customDisplayName" type="text" />
+                    <div class="field-error" id="error_customDisplayName"></div>
+                  </div>
+
+                  <div class="field" id="field_customActivityType">
+                    <label for="customActivityType" id="label_customActivityType"></label>
+                    <div class="custom-select custom-select-full" id="customActivityTypeSelect">
+                      <button type="button" class="custom-select-trigger" id="customActivityTypeSelectTrigger">
+                        <span class="custom-select-value" id="customActivityTypeSelectValue">Playing</span>
+                        <span class="custom-select-arrow"></span>
+                      </button>
+                      <div class="custom-select-menu" id="customActivityTypeSelectMenu"></div>
+                    </div>
+                    <select id="customActivityType" hidden>
+                      <option value="playing" data-icon="./assets/icons/playing.svg" id="option_customActivityType_playing">Playing</option>
+                      <option value="listening" data-icon="./assets/icons/listening.svg" id="option_customActivityType_listening">Listening</option>
+                      <option value="watching" data-icon="./assets/icons/watching.svg" id="option_customActivityType_watching">Watching</option>
+                      <option value="competing" data-icon="./assets/icons/competing.svg" id="option_customActivityType_competing">Competing</option>
+                    </select>
+                    <div class="field-error" id="error_customActivityType"></div>
+                  </div>
+
+                  <div class="field" id="field_customTitle">
+                    <label for="customTitle" id="label_customTitle"></label>
+                    <input id="customTitle" type="text" />
+                    <div class="field-error" id="error_customTitle"></div>
+                  </div>
+
+                  <div class="field" id="field_customGame">
+                    <label for="customGame" id="label_customGame"></label>
+                    <input id="customGame" type="text" />
+                    <div class="field-error" id="error_customGame"></div>
+                  </div>
+
+                  <div class="field" id="field_customTimestampMode">
+                    <label for="customTimestampMode" id="label_customTimestampMode"></label>
+                    <div class="custom-select custom-select-full" id="customTimestampModeSelect">
+                      <button type="button" class="custom-select-trigger" id="customTimestampModeSelectTrigger">
+                        <span class="custom-select-value" id="customTimestampModeSelectValue">No Timestamp</span>
+                        <span class="custom-select-arrow"></span>
+                      </button>
+                      <div class="custom-select-menu" id="customTimestampModeSelectMenu"></div>
+                    </div>
+                    <select id="customTimestampMode" hidden>
+                      <option value="none" data-flag="∅" id="option_customTimestampMode_none">No Timestamp</option>
+                      <option value="start" data-flag="↗" id="option_customTimestampMode_start">Elapsed</option>
+                      <option value="end" data-flag="↘" id="option_customTimestampMode_end">Countdown</option>
+                      <option value="startEnd" data-flag="↔" id="option_customTimestampMode_startEnd">Start + End</option>
+                      <option value="clock" data-flag="🕒" id="option_customTimestampMode_clock">Current Time</option>
+                    </select>
+                    <div class="field-error" id="error_customTimestampMode"></div>
+                  </div>
+
+                  <div class="field" id="field_customTimestampStart">
+                    <label for="customTimestampStart" id="label_customTimestampStart"></label>
+                    <input id="customTimestampStart" type="datetime-local" />
+                    <div class="field-error" id="error_customTimestampStart"></div>
+                  </div>
+
+                  <div class="field" id="field_customTimestampEnd">
+                    <label for="customTimestampEnd" id="label_customTimestampEnd"></label>
+                    <input id="customTimestampEnd" type="datetime-local" />
+                    <div class="field-error" id="error_customTimestampEnd"></div>
+                  </div>
+
+                  <div class="custom-card-section" id="field_customImageGroup">
+                    <div class="image-field-panel-title" id="sectionCustomImages"></div>
+
+                    <div class="image-field-grid custom-image-field-grid">
+                      <div class="image-field-panel">
+                        <div class="image-field-panel-title" id="sectionCustomImageKeys"></div>
+
+                        <div class="field" id="field_customLargeImageKey">
+                          <label for="customLargeImageKey" id="label_customLargeImageKey"></label>
+                          <input id="customLargeImageKey" type="text" />
+                          <div class="field-error" id="error_customLargeImageKey"></div>
+                        </div>
+
+                        <div class="field" id="field_customSmallImageKey">
+                          <label for="customSmallImageKey" id="label_customSmallImageKey"></label>
+                          <input id="customSmallImageKey" type="text" />
+                          <div class="field-error" id="error_customSmallImageKey"></div>
+                        </div>
+                      </div>
+
+                      <div class="image-field-panel">
+                        <div class="image-field-panel-title" id="sectionCustomImageUrls"></div>
+
+                        <div class="field" id="field_customLargeImageUrl">
+                          <label for="customLargeImageUrl" id="label_customLargeImageUrl"></label>
+                          <input id="customLargeImageUrl" type="text" />
+                          <div class="field-error" id="error_customLargeImageUrl"></div>
+                        </div>
+
+                        <div class="field" id="field_customSmallImageUrl">
+                          <label for="customSmallImageUrl" id="label_customSmallImageUrl"></label>
+                          <input id="customSmallImageUrl" type="text" />
+                          <div class="field-error" id="error_customSmallImageUrl"></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="field" id="field_customLargeText">
+                    <label for="customLargeText" id="label_customLargeText"></label>
+                    <input id="customLargeText" type="text" />
+                    <div class="field-error" id="error_customLargeText"></div>
+                  </div>
+
+                  <div class="field" id="field_customSmallText">
+                    <label for="customSmallText" id="label_customSmallText"></label>
+                    <input id="customSmallText" type="text" />
+                    <div class="field-error" id="error_customSmallText"></div>
+                  </div>
+
+                  <div class="field" id="field_customButtonOneLabel">
+                    <label for="customButtonOneLabel" id="label_customButtonOneLabel"></label>
+                    <input id="customButtonOneLabel" type="text" />
+                    <div class="field-error" id="error_customButtonOneLabel"></div>
+                  </div>
+
+                  <div class="field" id="field_customStreamUrl">
+                    <label for="customStreamUrl" id="label_customStreamUrl"></label>
+                    <input id="customStreamUrl" type="text" placeholder="https://..." />
+                    <div class="field-error" id="error_customStreamUrl"></div>
+                  </div>
+
+                  <div class="field" id="field_customButtonTwoLabel">
+                    <label for="customButtonTwoLabel" id="label_customButtonTwoLabel"></label>
+                    <input id="customButtonTwoLabel" type="text" />
+                    <div class="field-error" id="error_customButtonTwoLabel"></div>
+                  </div>
+
+                  <div class="field" id="field_customButtonTwoUrl">
+                    <label for="customButtonTwoUrl" id="label_customButtonTwoUrl"></label>
+                    <input id="customButtonTwoUrl" type="text" placeholder="https://..." />
+                    <div class="field-error" id="error_customButtonTwoUrl"></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="card editable-card section-locked" id="discordCard">
+                <div class="card-header">
+                  <h2 id="sectionDiscord"></h2>
+                  <button type="button" class="section-edit-btn" id="editDiscordBtn"><img src="./assets/icons/edit.svg" alt="" aria-hidden="true" /></button>
+                </div>
+
+                <div class="field" id="field_discordAppClientId">
+                  <label for="discordAppClientId" id="label_discordAppClientId"></label>
+                  <input id="discordAppClientId" type="text" />
+                  <div class="field-error" id="error_discordAppClientId"></div>
+                </div>
+
+                <div class="field" id="field_discordInviteUrl">
+                  <label for="discordInviteUrl" id="label_discordInviteUrl"></label>
+                  <input id="discordInviteUrl" type="text" placeholder="https://discord.gg/..." />
+                  <div class="field-error" id="error_discordInviteUrl"></div>
+                </div>
+
+              </div>
+
+              <div class="card full images-card editable-card section-locked" id="imagesCard">
+                <div class="card-header">
+                  <h2 id="sectionImages"></h2>
+                  <button type="button" class="section-edit-btn" id="editImagesBtn"><img src="./assets/icons/edit.svg" alt="" aria-hidden="true" /></button>
+                </div>
+
+                <div class="image-field-grid">
+                  <div class="image-field-panel">
+                    <div class="image-field-panel-title" id="sectionImageKeys"></div>
+
+                    <div class="field" id="field_largeImageKey">
+                      <label for="largeImageKey" id="label_largeImageKey"></label>
+                      <input id="largeImageKey" type="text" />
+                      <div class="field-error" id="error_largeImageKey"></div>
+                    </div>
+
+                    <div class="field" id="field_smallImageLiveKey">
+                      <label for="smallImageLiveKey" id="label_smallImageLiveKey"></label>
+                      <input id="smallImageLiveKey" type="text" />
+                      <div class="field-error" id="error_smallImageLiveKey"></div>
+                    </div>
+
+                    <div class="field" id="field_smallImageOfflineKey">
+                      <label for="smallImageOfflineKey" id="label_smallImageOfflineKey"></label>
+                      <input id="smallImageOfflineKey" type="text" />
+                      <div class="field-error" id="error_smallImageOfflineKey"></div>
+                    </div>
+                  </div>
+
+                  <div class="image-field-panel">
+                    <div class="image-field-panel-title" id="sectionImageUrls"></div>
+
+                    <div class="field" id="field_largeImageUrl">
+                      <label for="largeImageUrl" id="label_largeImageUrl"></label>
+                      <input id="largeImageUrl" type="text" />
+                      <div class="field-error" id="error_largeImageUrl"></div>
+                    </div>
+
+                    <div class="field" id="field_smallImageLiveUrl">
+                      <label for="smallImageLiveUrl" id="label_smallImageLiveUrl"></label>
+                      <input id="smallImageLiveUrl" type="text" />
+                      <div class="field-error" id="error_smallImageLiveUrl"></div>
+                    </div>
+
+                    <div class="field" id="field_smallImageOfflineUrl">
+                      <label for="smallImageOfflineUrl" id="label_smallImageOfflineUrl"></label>
+                      <input id="smallImageOfflineUrl" type="text" />
+                      <div class="field-error" id="error_smallImageOfflineUrl"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel" id="panel-settings">
+            <div class="settings-shell">
+              <div class="settings-card">
+                <h2 id="settingsMainTitle" hidden>Settings</h2>
+                <div class="settings-card-subtitle" id="settingsMainSubtitle" hidden></div>
+
+                <div class="settings-section">
+                  <div class="settings-section-title" id="sectionAppearance"></div>
+
+                  <div class="setting-block">
+                    <div class="setting-row">
+                      <div class="setting-text">
+                        <div class="setting-title" id="label_theme"></div>
+                        <div class="setting-description" id="desc_theme"></div>
+                      </div>
+
+                      <div class="setting-control">
+                        <div class="theme-grid">
+                          <label class="theme-option" id="themeOptionDark">
+                            <input type="radio" name="themeMode" value="dark" id="themeDark" />
+                            <div class="theme-card">
+                              <div class="theme-preview dark"></div>
+                              <div class="theme-label">
+                                <span class="theme-name" id="themeDarkLabel">Dark</span>
+                                <span class="theme-check"></span>
+                              </div>
+                            </div>
+                          </label>
+
+                          <label class="theme-option" id="themeOptionLight">
+                            <input type="radio" name="themeMode" value="light" id="themeLight" />
+                            <div class="theme-card">
+                              <div class="theme-preview light"></div>
+                              <div class="theme-label">
+                                <span class="theme-name" id="themeLightLabel">Light</span>
+                                <span class="theme-check"></span>
+                              </div>
+                            </div>
+                          </label>
+
+                          <label class="theme-option" id="themeOptionSystem">
+                            <input type="radio" name="themeMode" value="system" id="themeSystem" />
+                            <div class="theme-card">
+                              <div class="theme-preview system"></div>
+                              <div class="theme-label">
+                                <span class="theme-name" id="themeSystemLabel">System</span>
+                                <span class="theme-check"></span>
+                              </div>
+                            </div>
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="setting-block">
+                    <div class="setting-row">
+                      <div class="setting-text">
+                        <div class="setting-title" id="label_accentColor"></div>
+                        <div class="setting-description" id="desc_accentColor"></div>
+                      </div>
+
+                      <div class="setting-control">
+                        <div class="accent-color-control" id="accentColorControl">
+                          <input id="accentColor" type="hidden" value="#5865f2" />
+                          <button class="accent-color-picker" id="accentColorPicker" type="button" aria-haspopup="dialog" aria-expanded="false">
+                            <span class="accent-color-preview" id="accentColorPreview"></span>
+                            <span class="accent-color-meta">
+                              <span class="accent-color-picker-label" id="accentColorPickerLabel">Accent color</span>
+                              <span class="accent-color-value" id="accentColorValueText">#5865F2</span>
+                            </span>
+                            <span class="accent-color-arrow"></span>
+                          </button>
+                          <button class="accent-reset-btn" id="resetAccentColorBtn" type="button" aria-label="Reset to blue">
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                              <path d="M20 11a8 8 0 1 1-2.35-5.65" />
+                              <path d="M20 4v7h-7" />
+                            </svg>
+                          </button>
+                          <div class="accent-color-popover" id="accentColorPopover" hidden>
+                            <div class="accent-color-surface" id="accentColorSurface">
+                              <span class="accent-color-surface-thumb" id="accentColorSurfaceThumb"></span>
+                            </div>
+                            <div class="accent-color-hue">
+                              <input id="accentHue" type="range" min="0" max="360" value="233" />
+                            </div>
+                            <div class="accent-color-footer">
+                              <div class="accent-color-swatches" id="accentColorSwatches">
+                                <button class="accent-color-swatch" type="button" data-color="#5865f2" style="--swatch-color:#5865f2"></button>
+                                <button class="accent-color-swatch" type="button" data-color="#57f287" style="--swatch-color:#57f287"></button>
+                                <button class="accent-color-swatch" type="button" data-color="#f0b232" style="--swatch-color:#f0b232"></button>
+                                <button class="accent-color-swatch" type="button" data-color="#ed4245" style="--swatch-color:#ed4245"></button>
+                                <button class="accent-color-swatch" type="button" data-color="#eb459e" style="--swatch-color:#eb459e"></button>
+                                <button class="accent-color-swatch" type="button" data-color="#3ba55d" style="--swatch-color:#3ba55d"></button>
+                              </div>
+                              <label class="accent-color-hex-field" for="accentColorHex">
+                                <span class="accent-color-hex-label">HEX</span>
+                                <input id="accentColorHex" type="text" value="#5865F2" maxlength="7" spellcheck="false" autocomplete="off" />
+                              </label>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="setting-block">
+                    <div class="setting-row">
+                      <div class="setting-text">
+                        <div class="setting-title" id="label_language"></div>
+                        <div class="setting-description" id="desc_language"></div>
+                      </div>
+
+                      <div class="setting-control">
+                        <div class="custom-select" id="languageSelect">
+                          <button type="button" class="custom-select-trigger" id="languageSelectTrigger">
+                            <span class="custom-select-value" id="languageSelectValue">English</span>
+                            <span class="custom-select-arrow"></span>
+                          </button>
+                          <div class="custom-select-menu" id="languageSelectMenu"></div>
+                        </div>
+                        <select id="language" hidden></select>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="setting-block">
+                    <div class="setting-row">
+                      <div class="setting-text">
+                        <div class="setting-title" id="label_activityLanguage"></div>
+                        <div class="setting-description" id="desc_activityLanguage"></div>
+                      </div>
+
+                      <div class="setting-control">
+                        <div class="custom-select" id="activityLanguageSelect">
+                          <button type="button" class="custom-select-trigger" id="activityLanguageSelectTrigger">
+                            <span class="custom-select-value" id="activityLanguageSelectValue">English</span>
+                            <span class="custom-select-arrow"></span>
+                          </button>
+                          <div class="custom-select-menu" id="activityLanguageSelectMenu"></div>
+                        </div>
+                        <select id="activityLanguage" hidden></select>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="setting-block">
+                    <div class="setting-row">
+                      <div class="setting-text">
+                        <div class="setting-title" id="label_uiZoom"></div>
+                        <div class="setting-description" id="desc_uiZoom"></div>
+                      </div>
+
+                      <div class="setting-control">
+                        <div class="zoom-wrap">
+                          <div class="zoom-value"><span id="zoomValueText">100%</span></div>
+                          <input
+                            id="uiZoom"
+                            class="zoom-slider"
+                            type="range"
+                            min="50"
+                            max="200"
+                            step="5"
+                            value="100"
+                          />
+                          <div class="zoom-marks">
+                            <span>50</span>
+                            <span>75</span>
+                            <span class="zoom-mark-default">100</span>
+                            <span>125</span>
+                            <span>150</span>
+                            <span>175</span>
+                            <span>200</span>
+                          </div>
+                          <div class="zoom-note" id="zoomNote"></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="settings-section">
+                  <div class="settings-section-title" id="sectionBehavior"></div>
+
+                  <div class="setting-block">
+                    <div class="setting-row">
+                      <div class="setting-text">
+                        <div class="setting-title" id="label_checkIntervalSec"></div>
+                        <div class="setting-description" id="desc_checkIntervalSec"></div>
+                      </div>
+
+                      <div class="setting-control">
+                        <div class="interval-wrap" id="field_checkIntervalSec">
+                          <input id="checkIntervalSec" class="interval-input" type="number" min="5" />
+                          <span class="interval-suffix" id="intervalSuffix">Sec</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="field-error" id="error_checkIntervalSec"></div>
+                  </div>
+
+                  <div class="setting-block">
+                    <div class="setting-row">
+                      <div class="setting-text">
+                        <div class="setting-title" id="option_showPreview"></div>
+                        <div class="setting-description" id="desc_showPreview"></div>
+                      </div>
+
+                      <div class="setting-control">
+                        <span class="switch">
+                          <input id="showPreview" type="checkbox" />
+                          <span class="slider"></span>
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="setting-block">
+                    <div class="setting-row">
+                      <div class="setting-text">
+                        <div class="setting-title" id="option_useDefaultStreamStatusImage"></div>
+                        <div class="setting-description" id="desc_useDefaultStreamStatusImage"></div>
+                      </div>
+
+                      <div class="setting-control">
+                        <span class="switch">
+                          <input id="useDefaultStreamStatusImage" type="checkbox" />
+                          <span class="slider"></span>
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="setting-block">
+                    <div class="setting-row">
+                      <div class="setting-text">
+                        <div class="setting-title" id="option_launchOnStartup"></div>
+                        <div class="setting-description" id="desc_launchOnStartup"></div>
+                      </div>
+
+                      <div class="setting-control">
+                        <span class="switch">
+                          <input id="launchOnStartup" type="checkbox" />
+                          <span class="slider"></span>
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="setting-block">
+                    <div class="setting-row">
+                      <div class="setting-text">
+                        <div class="setting-title" id="option_minimizeToTray"></div>
+                        <div class="setting-description" id="desc_minimizeToTray"></div>
+                      </div>
+
+                      <div class="setting-control">
+                        <span class="switch">
+                          <input id="minimizeToTray" type="checkbox" />
+                          <span class="slider"></span>
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="setting-block">
+                    <div class="setting-row">
+                      <div class="setting-text">
+                        <div class="setting-title" id="option_startMinimized"></div>
+                        <div class="setting-description" id="desc_startMinimized"></div>
+                      </div>
+
+                      <div class="setting-control">
+                        <span class="switch">
+                          <input id="startMinimized" type="checkbox" />
+                          <span class="slider"></span>
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="setting-block">
+                    <div class="setting-row">
+                      <div class="setting-text">
+                        <div class="setting-title" id="option_autoStartPresence"></div>
+                        <div class="setting-description" id="desc_autoStartPresence"></div>
+                      </div>
+
+                      <div class="setting-control">
+                        <span class="switch">
+                          <input id="autoStartPresence" type="checkbox" />
+                          <span class="slider"></span>
+                        </span>
+                      </div>
+                    </div>
+
+                    <div class="info-box">
+                      <div class="info-box-icon">i</div>
+                      <div id="info_autoStartPresence"></div>
+                    </div>
+                  </div>
+
+                  <div class="setting-block">
+                    <div class="setting-row">
+                      <div class="setting-text">
+                        <div class="setting-title" id="option_autoCheckForUpdates"></div>
+                        <div class="setting-description" id="desc_autoCheckForUpdates"></div>
+                      </div>
+
+                      <div class="setting-control">
+                        <span class="switch">
+                          <input id="autoCheckForUpdates" type="checkbox" />
+                          <span class="slider"></span>
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="setting-block">
+                    <div class="setting-row">
+                      <div class="setting-text">
+                        <div class="setting-title" id="label_updates"></div>
+                        <div class="setting-description" id="desc_updates"></div>
+                      </div>
+
+                      <div class="setting-control update-control">
+                        <div class="update-status" id="updateStatusText"></div>
+                        <div class="toolbar update-actions">
+                          <button class="action btn-test" id="checkUpdatesBtn" type="button"></button>
+                          <button class="action btn-import" id="downloadUpdateBtn" type="button" hidden></button>
+                          <button class="action btn-start" id="installUpdateBtn" type="button" hidden></button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="setting-block">
+                    <div class="setting-row">
+                      <div class="setting-text">
+                        <div class="setting-title" id="label_appDataTransfer"></div>
+                        <div class="setting-description" id="desc_appDataTransfer"></div>
+                      </div>
+
+                      <div class="setting-control">
+                        <div class="toolbar settings-transfer-actions">
+                          <button class="action btn-import" id="settingsImportBtn" type="button"></button>
+                          <button class="action btn-export" id="settingsExportBtn" type="button"></button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="setting-block">
+                    <div class="warning-box">
+                      <div class="warning-box-icon">!</div>
+                      <div id="hintDiscordRequired"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel" id="panel-presets">
+            <div class="settings-shell">
+              <div class="settings-card">
+                <h2 id="sectionPresets" hidden></h2>
+                <div class="settings-card-subtitle" id="newPresetSubtitle" hidden></div>
+
+                <div class="settings-section">
+                  <div class="toolbar">
+                    <button class="action btn-save" id="createPresetBtn"></button>
+                  </div>
+
+                  <div class="hint" id="hintPresets"></div>
+
+                  <div hidden>
+                    <div class="field" id="field_presetName">
+                      <label for="presetName" id="label_presetName"></label>
+                      <input id="presetName" type="text" />
+                      <div class="field-error" id="error_presetName"></div>
+                    </div>
+                    <label for="presetSelect" id="label_presetSelect"></label>
+                    <select id="presetSelect"></select>
+                    <button class="action btn-import" id="loadPresetBtn" type="button"></button>
+                    <button class="action btn-stop" id="deletePresetBtn" type="button"></button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel" id="panel-help">
+            <div class="grid">
+              <div class="card full">
+                <h2 id="sectionHelp" hidden></h2>
+                <div class="help-layout" id="helpText"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <div class="app-confirm-modal" id="appConfirmModal" hidden>
+    <div class="app-confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="appConfirmTitle" aria-describedby="appConfirmMessage">
+      <div class="app-confirm-header">
+        <div class="app-confirm-badge" id="appConfirmBadge">!</div>
+        <div class="app-confirm-copy">
+          <div class="app-confirm-title" id="appConfirmTitle">Confirm</div>
+          <div class="app-confirm-message" id="appConfirmMessage"></div>
+        </div>
+      </div>
+      <div class="app-confirm-actions">
+        <button class="action btn-import" id="appConfirmCancelBtn" type="button">Cancel</button>
+        <button class="action btn-stop" id="appConfirmAcceptBtn" type="button">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="app-tooltip" id="appTooltip" data-placement="top" hidden>
+    <div class="app-tooltip-label" id="appTooltipLabel"></div>
+    <div class="app-tooltip-arrow"></div>
+  </div>
+
+  <script src="./renderer/00-state.js"></script>
+  <script src="./renderer/01-dom-utils.js"></script>
+  <script src="./renderer/02-form-ui.js"></script>
+  <script src="./renderer/03-language-help.js"></script>
+  <script src="./renderer/04-presets.js"></script>
+  <script src="./renderer/05-preview.js"></script>
+  <script src="./renderer/06-actions.js"></script>
+  <script src="./renderer/07-events-init.js"></script>
+</body>
+</html>
