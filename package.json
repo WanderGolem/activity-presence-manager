@@ -12,9 +12,9 @@
   },
   "scripts": {
     "start": "electron .",
-    "pack": "electron-builder --win --dir",
-    "dist": "electron-builder --win --publish never",
-    "release": "electron-builder --win --publish always"
+    "pack": "set ELECTRON_BUILDER_CACHE=.cache\\electron-builder&& electron-builder --win --dir",
+    "dist": "set ELECTRON_BUILDER_CACHE=.cache\\electron-builder&& electron-builder --win --publish never",
+    "release": "set ELECTRON_BUILDER_CACHE=.cache\\electron-builder&& electron-builder --win --publish always"
   },
   "dependencies": {
     "discord-rpc": "^4.0.1",
@@ -29,12 +29,14 @@
   "build": {
     "appId": "com.wandergolem.activitypresencemanager",
     "productName": "Activity Presence Manager",
+    "electronDist": "node_modules/electron/dist",
     "directories": {
       "output": "dist"
     },
     "files": [
       "**/*",
       "!dist/**",
+      "!.cache/**",
       "!.npm-cache/**",
       "!.codex/**",
       "!.github/**",

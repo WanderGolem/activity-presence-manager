@@ -9,6 +9,7 @@ release/
 latest.yml
 
 # npm/cache/logs
+.cache/
 .npm-cache/
 npm-debug.log*
 yarn-debug.log*
