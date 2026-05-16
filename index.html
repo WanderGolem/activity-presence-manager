@@ -911,7 +911,10 @@
                       </div>
 
                       <div class="setting-control update-control">
-                        <div class="update-status" id="updateStatusText"></div>
+                        <div class="update-status" id="updateStatusText" aria-live="polite"></div>
+                        <div class="update-progress" id="updateProgress" role="progressbar" aria-valuemin="0" aria-valuemax="100" hidden>
+                          <span class="update-progress-bar" id="updateProgressBar"></span>
+                        </div>
                         <div class="toolbar update-actions">
                           <button class="action btn-test" id="checkUpdatesBtn" type="button"></button>
                           <button class="action btn-start" id="installUpdateBtn" type="button" hidden></button>

@@ -1499,6 +1499,12 @@
       letter-spacing: 0.02em;
     }
 
+    .action:disabled {
+      cursor: default;
+      filter: none;
+      opacity: 0.58;
+    }
+
     .action-icon {
       width: 14px;
       height: 14px;
@@ -1518,6 +1524,10 @@
 
     .btn-stop { background: var(--danger); color: #fff; }
     .btn-stop:hover { filter: brightness(0.96); }
+
+    .action:disabled:hover {
+      filter: none;
+    }
 
     .btn-import,
     .btn-export {
@@ -1551,6 +1561,70 @@
       font-weight: 700;
       text-align: right;
       line-height: 1.4;
+      display: flex;
+      justify-content: flex-end;
+      align-items: flex-start;
+      gap: 8px;
+    }
+
+    .update-status::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      margin-top: 4px;
+      background: var(--muted);
+      flex-shrink: 0;
+      box-shadow: 0 0 0 3px rgba(181, 186, 193, 0.1);
+    }
+
+    .update-status[data-update-status="checking"],
+    .update-status[data-update-status="downloading"] {
+      color: var(--warning);
+    }
+
+    .update-status[data-update-status="checking"]::before,
+    .update-status[data-update-status="downloading"]::before {
+      background: var(--warning);
+      box-shadow: 0 0 0 3px rgba(240, 178, 50, 0.14);
+    }
+
+    .update-status[data-update-status="available"],
+    .update-status[data-update-status="downloaded"] {
+      color: var(--success);
+    }
+
+    .update-status[data-update-status="available"]::before,
+    .update-status[data-update-status="downloaded"]::before {
+      background: var(--success);
+      box-shadow: 0 0 0 3px rgba(35, 165, 89, 0.14);
+    }
+
+    .update-status[data-update-status="error"] {
+      color: var(--danger);
+    }
+
+    .update-status[data-update-status="error"]::before {
+      background: var(--danger);
+      box-shadow: 0 0 0 3px rgba(218, 55, 60, 0.14);
+    }
+
+    .update-progress {
+      width: 100%;
+      height: 7px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: var(--panel-4);
+      border: 1px solid var(--border);
+    }
+
+    .update-progress-bar {
+      display: block;
+      width: 0;
+      height: 100%;
+      border-radius: inherit;
+      background: var(--warning);
+      transition: width 0.18s ease;
     }
 
     .update-actions {
@@ -2829,6 +2903,7 @@
 
       .update-status {
         text-align: left;
+        justify-content: flex-start;
       }
 
       .zoom-wrap,

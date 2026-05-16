@@ -44,27 +44,71 @@ function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function getUpdaterProgressPercent(state = currentUpdaterState) {
+  return Math.max(0, Math.min(100, Math.round(Number(state?.progress?.percent || 0))));
+}
+
+function formatUpdaterError(error) {
+  const raw = String(error || "unknown_error");
+  const messages = {
+    updates_unavailable_in_dev: ["update.error.unavailableDev", "Updates are only available in the installed app."],
+    no_update_available: ["update.error.noUpdateAvailable", "No update is available right now."],
+    update_not_downloaded: ["update.error.notDownloaded", "The update has not been downloaded yet."],
+    update_check_failed: ["update.error.checkFailed", "The update check failed."],
+    update_download_failed: ["update.error.downloadFailed", "The update download failed."],
+    update_install_failed: ["update.error.installFailed", "The update installation could not be started."],
+    unknown_error: ["update.error.unknown", "Unknown update error."]
+  };
+
+  const [key, fallback] = messages[raw] || [];
+  return key ? t(key, fallback) : raw;
+}
+
 function formatUpdaterStatus(state = currentUpdaterState) {
   const status = state?.status || "idle";
   const version = state?.version || "";
-  const updateVersion = state?.info?.version || "";
-  const percent = Math.round(Number(state?.progress?.percent || 0));
+  const updateVersion = state?.info?.version || version || "";
+  const percent = getUpdaterProgressPercent(state);
 
   const replacements = { version, updateVersion, percent };
   const messages = {
-    idle: ["update.status.idle", "Current version: {version}"],
-    checking: ["update.status.checking", "Checking for updates ..."],
-    available: ["update.status.available", "Update {updateVersion} is available."],
-    "not-available": ["update.status.notAvailable", "Current version {version} is up to date."],
-    downloading: ["update.status.downloading", "Downloading update ... {percent}%"],
-    downloaded: ["update.status.downloaded", "Update {updateVersion} is ready to install."],
-    installing: ["update.status.installing", "Installing update ..."],
-    error: ["update.status.error", "Update error: {error}"],
-    "unavailable-dev": ["update.status.unavailableDev", "Updates are only available in the installed app."]
+    idle: ["update.status.idle", "Installed version: {version}. Ready to check for updates."],
+    checking: ["update.status.checking", "Checking GitHub Releases for a newer version ..."],
+    available: ["update.status.available", "Version {updateVersion} is available. Install will download it and restart the app."],
+    "not-available": ["update.status.notAvailable", "Everything is up to date. Installed version: {version}."],
+    downloading: ["update.status.downloading", "Downloading version {updateVersion} ... {percent}%"],
+    downloaded: ["update.status.downloaded", "Version {updateVersion} is downloaded. Install will restart the app."],
+    installing: ["update.status.installing", "Starting installation. The app will restart in a moment ..."],
+    error: ["update.status.error", "Update failed: {error}"],
+    "unavailable-dev": ["update.status.unavailableDev", "Updater is disabled in development mode. Test updates in the installed app."]
   };
 
   const [key, fallback] = messages[status] || messages.idle;
-  return formatText(t(key, fallback), { ...replacements, error: state?.error || "unknown_error" });
+  return formatText(t(key, fallback), { ...replacements, error: formatUpdaterError(state?.error) });
+}
+
+function getUpdaterInstallButtonLabel(status) {
+  const labels = {
+    checking: ["button.updateChecking", "Checking ..."],
+    available: ["button.downloadAndInstallUpdate", "Download & install"],
+    downloading: ["button.updateDownloading", "Downloading ..."],
+    downloaded: ["button.installDownloadedUpdate", "Install now"],
+    installing: ["button.updateInstalling", "Installing ..."],
+    "not-available": ["button.noUpdateAvailable", "No update"],
+    "unavailable-dev": ["button.noUpdateAvailable", "No update"],
+    error: ["button.installUpdate", "Install update"],
+    idle: ["button.installUpdate", "Install update"]
+  };
+  const [key, fallback] = labels[status] || labels.idle;
+  return t(key, fallback);
+}
+
+function getUpdaterCheckButtonLabel(status) {
+  if (status === "checking") return t("button.updateChecking", "Checking ...");
+  if (["available", "downloaded", "not-available", "error", "unavailable-dev"].includes(status)) {
+    return t("button.checkAgain", "Check again");
+  }
+  return t("button.checkUpdates", "Check updates");
 }
 
 function updateUpdaterUi(state = {}) {
@@ -79,20 +123,41 @@ function updateUpdaterUi(state = {}) {
   const checkBtn = el("checkUpdatesBtn");
   const installBtn = el("installUpdateBtn");
   const titlebarUpdateBtn = el("titlebarUpdateBtn");
+  const progressWrap = el("updateProgress");
+  const progressBar = el("updateProgressBar");
+  const status = currentUpdaterState.status || "idle";
+  const percent = getUpdaterProgressPercent(currentUpdaterState);
   const updateActionVisible = ["available", "downloading", "downloaded", "installing"].includes(currentUpdaterState.status);
   const canInstall = ["available", "downloaded"].includes(currentUpdaterState.status);
   const isBusy = ["checking", "downloading", "installing"].includes(currentUpdaterState.status);
 
-  if (checkBtn) checkBtn.disabled = isBusy;
+  if (statusText) {
+    statusText.dataset.updateStatus = status;
+  }
+
+  if (progressWrap && progressBar) {
+    const showProgress = status === "downloading";
+    progressWrap.hidden = !showProgress;
+    progressWrap.setAttribute("aria-valuenow", String(percent));
+    progressBar.style.width = `${percent}%`;
+  }
+
+  if (checkBtn) {
+    checkBtn.disabled = isBusy;
+    setButtonContent("checkUpdatesBtn", getUpdaterCheckButtonLabel(status), "./assets/icons/update.svg");
+  }
 
   if (installBtn) {
     installBtn.hidden = false;
     installBtn.disabled = !canInstall || isBusy;
+    setButtonContent("installUpdateBtn", getUpdaterInstallButtonLabel(status), "./assets/icons/update.svg");
   }
 
   if (titlebarUpdateBtn) {
     titlebarUpdateBtn.hidden = !updateActionVisible;
     titlebarUpdateBtn.disabled = !canInstall || isBusy;
+    titlebarUpdateBtn.title = getUpdaterInstallButtonLabel(status);
+    titlebarUpdateBtn.setAttribute("aria-label", getUpdaterInstallButtonLabel(status));
   }
 }
 
@@ -116,12 +181,17 @@ async function installAvailableUpdate() {
     }
 
     const start = Date.now();
-    while (Date.now() - start < 30000) {
+    while (Date.now() - start < 120000) {
       const state = await window.appApi.getUpdaterState();
       updateUpdaterUi(state);
       if (state.status === "downloaded") break;
       if (state.status === "error") return;
       await wait(500);
+    }
+
+    if (currentUpdaterState.status !== "downloaded") {
+      updateUpdaterUi({ status: "error", error: "update_download_failed", progress: null });
+      return;
     }
   }
 
