@@ -5,6 +5,10 @@ const YOUTUBE_OFFLINE_SEARCH_MIN_MS = 15 * 60 * 1000;
 const CUSTOM_CLOCK_REFRESH_MS = 1000;
 const DEFAULT_TWITCH_API_MODE = "managed";
 const MANAGED_TWITCH_STATUS_API_URL = "https://api.activitypresencemanager.com/twitch/status";
+const DEFAULT_FETCH_TIMEOUT_MS = 8000;
+const DEFAULT_FETCH_RETRIES = 2;
+const RETRY_DELAY_MS = 600;
+const RETRYABLE_HTTP_STATUS = new Set([408, 429, 500, 502, 503, 504, 520, 522, 524]);
 
 class PresenceService {
   constructor({ config, onLog, onStatus }) {
@@ -17,6 +21,7 @@ class PresenceService {
     this.running = false;
     this.tokenCache = { token: null, exp: 0 };
     this.activityStartedAtUnix = null;
+    this.lastSourceWarningKey = "";
     this.resetSourceCache();
 
     this.uiFallbackI18n = {
@@ -27,10 +32,27 @@ class PresenceService {
       "presence.log.tickError": "Tick error: {message}",
       "presence.log.intervalError": "Interval error: {message}",
       "presence.log.cleared": "Discord presence cleared.",
+      "presence.log.usingCachedData": "{source} is temporarily unavailable. Keeping the last known status.",
+      "presence.log.usingFallbackData": "{source} is temporarily unavailable. Showing a safe offline fallback.",
+      "presence.log.usingOfficialTwitchFallback": "Managed Twitch API is unavailable. Falling back to your own Twitch app.",
       "presence.log.customReady": "Custom activity ready: {name}",
       "presence.log.customApplied": "Custom activity updated: {name}",
       "presence.error.streamerNotFound": "Streamer '{login}' not found",
-      "presence.error.youtubeChannelNotFound": "YouTube channel '{channel}' not found"
+      "presence.error.youtubeChannelNotFound": "YouTube channel '{channel}' not found",
+      "presence.error.requestTimeout": "{service} did not respond in time. Please try again shortly.",
+      "presence.error.network": "{service} is unreachable. Please check your connection.",
+      "presence.error.rateLimited": "{service} received too many requests. Please wait a moment.",
+      "presence.error.http": "{service} responded with HTTP {status}.",
+      "presence.error.invalidApiResponse": "{service} returned an unexpected response.",
+      "presence.error.managedApiMissingChannel": "Please enter a Twitch channel name.",
+      "presence.error.managedApiChannelNotFound": "Twitch channel '{login}' was not found.",
+      "presence.error.managedApiUnavailable": "The managed Twitch API is temporarily unavailable.",
+      "presence.error.twitchCredentialsRejected": "Twitch rejected the Client ID or Client Secret.",
+      "presence.error.twitchUnavailable": "Twitch is temporarily unavailable.",
+      "presence.error.youtubeForbidden": "YouTube rejected the API key or channel request.",
+      "presence.error.youtubeQuota": "The YouTube API quota is exhausted. Please try again later.",
+      "presence.error.youtubeUnavailable": "YouTube is temporarily unavailable.",
+      "presence.error.discordUnavailable": "Discord Desktop is not running or Rich Presence could not connect."
     };
 
     this.activityFallbackI18n = {
@@ -60,7 +82,9 @@ class PresenceService {
   resetSourceCache() {
     this.sourceCache = {
       twitchUser: null,
+      twitchActivityData: null,
       youtubeChannel: null,
+      youtubeActivityData: null,
       youtubeLiveVideoId: "",
       youtubeNextOfflineCheckAt: 0
     };
@@ -225,6 +249,255 @@ class PresenceService {
   normalizeTwitchApiMode(mode = this.config.twitchApiMode) {
     const normalized = String(mode || DEFAULT_TWITCH_API_MODE).trim().toLowerCase();
     return normalized === "official" ? "official" : DEFAULT_TWITCH_API_MODE;
+  }
+
+  sleep(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  createPresenceError(code, message, details = {}) {
+    const err = new Error(message);
+    err.code = code;
+    err.status = details.status;
+    err.retryable = !!details.retryable;
+    err.isPresenceError = true;
+    return err;
+  }
+
+  isRetryableError(err) {
+    if (!err) return false;
+    if (typeof err.retryable === "boolean") return err.retryable;
+    return RETRYABLE_HTTP_STATUS.has(Number(err.status || 0));
+  }
+
+  getServiceLabel(type, fallback = "API") {
+    const labels = {
+      managedTwitch: "Managed Twitch API",
+      twitchAuth: "Twitch",
+      twitch: "Twitch",
+      youtube: "YouTube"
+    };
+    return labels[type] || fallback;
+  }
+
+  normalizeRequestError(err, context = {}) {
+    if (err?.isPresenceError) return err;
+
+    const service = context.service || this.getServiceLabel(context.type);
+    const name = String(err?.name || "");
+    const type = String(err?.type || err?.code || "");
+
+    if (name === "AbortError" || type === "aborted") {
+      return this.createPresenceError(
+        "request_timeout",
+        this.uiT("presence.error.requestTimeout", { service }, `${service} did not respond in time.`),
+        { retryable: true }
+      );
+    }
+
+    return this.createPresenceError(
+      "network_error",
+      this.uiT("presence.error.network", { service }, `${service} is unreachable.`),
+      { retryable: true }
+    );
+  }
+
+  async fetchWithTimeout(url, options = {}, context = {}) {
+    const timeoutMs = Number(context.timeoutMs || DEFAULT_FETCH_TIMEOUT_MS);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      return await fetch(url, {
+        ...options,
+        signal: controller.signal
+      });
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  async readJsonResponse(res, context = {}) {
+    try {
+      return await res.json();
+    } catch {
+      const service = context.service || this.getServiceLabel(context.type);
+      throw this.createPresenceError(
+        "invalid_api_response",
+        this.uiT("presence.error.invalidApiResponse", { service }, `${service} returned an unexpected response.`),
+        { status: res.status, retryable: res.status >= 500 }
+      );
+    }
+  }
+
+  getYouTubeErrorReason(json) {
+    const reasons = json?.error?.errors || [];
+    return String(reasons[0]?.reason || json?.error?.status || json?.error?.message || "").toLowerCase();
+  }
+
+  createManagedApiError(status, json, context = {}) {
+    const code = String(json?.error?.code || "").toUpperCase();
+    const service = context.service || this.getServiceLabel(context.type);
+    const login = context.login || this.s(this.config.streamerLogin, "", 64);
+
+    if (code === "MISSING_CHANNEL") {
+      return this.createPresenceError(
+        "managed_twitch_missing_channel",
+        this.uiT("presence.error.managedApiMissingChannel", {}, "Please enter a Twitch channel name."),
+        { status, retryable: false }
+      );
+    }
+
+    if (code === "CHANNEL_NOT_FOUND") {
+      return this.createPresenceError(
+        "managed_twitch_channel_not_found",
+        this.uiT("presence.error.managedApiChannelNotFound", { login }, `Twitch channel '${login}' was not found.`),
+        { status, retryable: false }
+      );
+    }
+
+    if (code === "RATE_LIMITED") {
+      return this.createPresenceError(
+        "rate_limited",
+        this.uiT("presence.error.rateLimited", { service }, `${service} received too many requests.`),
+        { status: status || 429, retryable: true }
+      );
+    }
+
+    if (code.startsWith("TWITCH_")) {
+      return this.createPresenceError(
+        `managed_${code.toLowerCase()}`,
+        this.uiT("presence.error.managedApiUnavailable", {}, "The managed Twitch API is temporarily unavailable."),
+        { status, retryable: true }
+      );
+    }
+
+    const message = json?.error?.message || this.uiT("presence.error.managedApiUnavailable", {}, "The managed Twitch API is temporarily unavailable.");
+    return this.createPresenceError("managed_twitch_error", message, { status, retryable: status >= 500 });
+  }
+
+  createHttpError(status, json, context = {}) {
+    const service = context.service || this.getServiceLabel(context.type);
+
+    if (context.type === "managedTwitch" && json?.success === false) {
+      return this.createManagedApiError(status, json, context);
+    }
+
+    if (status === 429) {
+      return this.createPresenceError(
+        "rate_limited",
+        this.uiT("presence.error.rateLimited", { service }, `${service} received too many requests.`),
+        { status, retryable: true }
+      );
+    }
+
+    if (context.type === "twitchAuth" && (status === 400 || status === 401 || status === 403)) {
+      return this.createPresenceError(
+        "twitch_credentials_rejected",
+        this.uiT("presence.error.twitchCredentialsRejected", {}, "Twitch rejected the Client ID or Client Secret."),
+        { status, retryable: false }
+      );
+    }
+
+    if (context.type === "youtube" && (status === 400 || status === 401 || status === 403)) {
+      const reason = this.getYouTubeErrorReason(json);
+      const quotaExceeded = /quota|dailylimit|ratelimit/.test(reason);
+      return this.createPresenceError(
+        quotaExceeded ? "youtube_quota_exceeded" : "youtube_forbidden",
+        quotaExceeded
+          ? this.uiT("presence.error.youtubeQuota", {}, "The YouTube API quota is exhausted. Please try again later.")
+          : this.uiT("presence.error.youtubeForbidden", {}, "YouTube rejected the API key or channel request."),
+        { status, retryable: quotaExceeded }
+      );
+    }
+
+    if (status >= 500) {
+      const key = context.type === "youtube"
+        ? "presence.error.youtubeUnavailable"
+        : context.type === "managedTwitch"
+          ? "presence.error.managedApiUnavailable"
+          : "presence.error.twitchUnavailable";
+      return this.createPresenceError(
+        "service_unavailable",
+        this.uiT(key, {}, `${service} is temporarily unavailable.`),
+        { status, retryable: true }
+      );
+    }
+
+    return this.createPresenceError(
+      "http_error",
+      this.uiT("presence.error.http", { service, status }, `${service} responded with HTTP ${status}.`),
+      { status, retryable: RETRYABLE_HTTP_STATUS.has(status) }
+    );
+  }
+
+  async fetchJson(url, options = {}, context = {}) {
+    const retries = Math.max(0, Number(context.retries ?? DEFAULT_FETCH_RETRIES));
+    let lastError = null;
+
+    for (let attempt = 0; attempt <= retries; attempt += 1) {
+      try {
+        const res = await this.fetchWithTimeout(url, options, context);
+        const json = await this.readJsonResponse(res, context);
+
+        if (!res.ok) {
+          throw this.createHttpError(res.status, json, context);
+        }
+
+        return json;
+      } catch (err) {
+        lastError = this.normalizeRequestError(err, context);
+        if (attempt >= retries || !this.isRetryableError(lastError)) {
+          throw lastError;
+        }
+
+        await this.sleep(RETRY_DELAY_MS * (attempt + 1));
+      }
+    }
+
+    throw lastError;
+  }
+
+  logSourceWarningOnce(key, message) {
+    if (this.lastSourceWarningKey === key) return;
+    this.lastSourceWarningKey = key;
+    this.log(message);
+  }
+
+  clearSourceWarning() {
+    this.lastSourceWarningKey = "";
+  }
+
+  resolveSourceFallback(sourceType, err, fallbackBuilder) {
+    if (!this.isRetryableError(err)) {
+      throw err;
+    }
+
+    const cacheKey = `${sourceType}ActivityData`;
+    const cached = this.sourceCache[cacheKey];
+    const sourceLabel = sourceType === "youtube" ? "YouTube" : "Twitch";
+
+    if (cached) {
+      this.logSourceWarningOnce(
+        `${sourceType}-cached`,
+        this.uiT(
+          "presence.log.usingCachedData",
+          { source: sourceLabel },
+          `${sourceLabel} is temporarily unavailable. Keeping the last known status.`
+        )
+      );
+      return cached;
+    }
+
+    this.logSourceWarningOnce(
+      `${sourceType}-fallback`,
+      this.uiT(
+        "presence.log.usingFallbackData",
+        { source: sourceLabel },
+        `${sourceLabel} is temporarily unavailable. Showing a safe offline fallback.`
+      )
+    );
+    return fallbackBuilder();
   }
 
   normalizeCustomActivityType(type = this.config.customActivityType) {
@@ -634,7 +907,7 @@ class PresenceService {
       return this.tokenCache.token;
     }
 
-    const res = await fetch("https://id.twitch.tv/oauth2/token", {
+    const js = await this.fetchJson("https://id.twitch.tv/oauth2/token", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({
@@ -642,13 +915,20 @@ class PresenceService {
         client_secret: this.config.twitchClientSecret,
         grant_type: "client_credentials"
       })
+    }, {
+      type: "twitchAuth",
+      service: "Twitch",
+      retries: 1
     });
 
-    if (!res.ok) {
-      throw new Error(`Twitch Token HTTP ${res.status}`);
+    if (!js?.access_token) {
+      throw this.createPresenceError(
+        "invalid_api_response",
+        this.uiT("presence.error.invalidApiResponse", { service: "Twitch" }, "Twitch returned an unexpected response."),
+        { retryable: true }
+      );
     }
 
-    const js = await res.json();
     this.tokenCache.token = js.access_token;
     this.tokenCache.exp = Math.floor(Date.now() / 1000) + (js.expires_in || 3600);
     return this.tokenCache.token;
@@ -658,16 +938,19 @@ class PresenceService {
     const url = new URL(MANAGED_TWITCH_STATUS_API_URL);
     url.searchParams.set("channel", login);
 
-    const res = await fetch(url.toString());
-    if (!res.ok) {
-      throw new Error(`Managed Twitch API HTTP ${res.status}`);
-    }
+    const json = await this.fetchJson(url.toString(), {}, {
+      type: "managedTwitch",
+      service: "Managed Twitch API",
+      login,
+      retries: 2
+    });
 
-    const json = await res.json();
     if (json && typeof json === "object" && json.success === false) {
-      const code = json.error?.code || "TWITCH_STATUS_API_ERROR";
-      const message = json.error?.message || "Twitch status API request failed";
-      throw new Error(`Managed Twitch API ${code}: ${message}`);
+      throw this.createManagedApiError(200, json, {
+        type: "managedTwitch",
+        service: "Managed Twitch API",
+        login
+      });
     }
 
     if (json && typeof json === "object" && json.success === true && json.data && typeof json.data === "object") {
@@ -675,7 +958,11 @@ class PresenceService {
     }
 
     if (json && typeof json === "object" && json.success === true) {
-      throw new Error("Managed Twitch API returned no channel data");
+      throw this.createPresenceError(
+        "invalid_api_response",
+        this.uiT("presence.error.invalidApiResponse", { service: "Managed Twitch API" }, "Managed Twitch API returned an unexpected response."),
+        { retryable: true }
+      );
     }
 
     return json;
@@ -688,7 +975,7 @@ class PresenceService {
     const startedAt = data.started_at || data.startedAt || null;
     const previewImage = data.profile_image || "";
 
-    return this.buildActivityData({
+    const activityData = this.buildActivityData({
       sourceType: "twitch",
       displayName,
       avatarUrl: previewImage,
@@ -711,6 +998,9 @@ class PresenceService {
         ? data.is_branded_content
         : null
     });
+    this.sourceCache.twitchActivityData = activityData;
+    this.clearSourceWarning();
+    return activityData;
   }
 
   async tFetch(endpoint, params = {}) {
@@ -719,18 +1009,18 @@ class PresenceService {
 
     Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
 
-    const res = await fetch(url.toString(), {
+    const js = await this.fetchJson(url.toString(), {
       headers: {
         "Client-ID": this.config.twitchClientId,
         Authorization: `Bearer ${token}`
       }
+    }, {
+      type: "twitch",
+      service: "Twitch",
+      retries: 2
     });
 
-    if (!res.ok) {
-      throw new Error(`Twitch ${endpoint} HTTP ${res.status}`);
-    }
-
-    return res.json();
+    return js;
   }
 
   async getUser(login) {
@@ -791,23 +1081,7 @@ class PresenceService {
       : { title: null, game: null, language: "", tags: [], isBrandedContent: null };
   }
 
-  async resolveTwitchActivityData() {
-    const login = this.s(this.config.streamerLogin, "", 64);
-    if (!login) {
-      return this.buildFallbackActivityData("twitch");
-    }
-
-    if (this.normalizeTwitchApiMode() !== "official") {
-      return this.resolveManagedTwitchActivityData(login);
-    }
-
-    const clientId = this.s(this.config.twitchClientId, "", 128);
-    const clientSecret = this.s(this.config.twitchClientSecret, "", 128);
-
-    if (!clientId || !clientSecret) {
-      return this.buildFallbackActivityData("twitch");
-    }
-
+  async resolveOfficialTwitchActivityData(login) {
     const user = await this.getTwitchUser();
     const stream = await this.getStream(user.id);
 
@@ -827,7 +1101,7 @@ class PresenceService {
       // ignore channel fallback errors
     }
 
-    return this.buildActivityData({
+    const activityData = this.buildActivityData({
       sourceType: "twitch",
       displayName: user.display_name || login,
       avatarUrl: user.profile_image_url || "",
@@ -847,6 +1121,50 @@ class PresenceService {
       tags: channelTags,
       isBrandedContent
     });
+    this.sourceCache.twitchActivityData = activityData;
+    this.clearSourceWarning();
+    return activityData;
+  }
+
+  async resolveTwitchActivityData() {
+    const login = this.s(this.config.streamerLogin, "", 64);
+    if (!login) {
+      return this.buildFallbackActivityData("twitch");
+    }
+
+    const clientId = this.s(this.config.twitchClientId, "", 128);
+    const clientSecret = this.s(this.config.twitchClientSecret, "", 128);
+    const hasOfficialCredentials = !!clientId && !!clientSecret;
+
+    if (this.normalizeTwitchApiMode() !== "official") {
+      try {
+        return await this.resolveManagedTwitchActivityData(login);
+      } catch (err) {
+        if (hasOfficialCredentials && this.isRetryableError(err)) {
+          this.logSourceWarningOnce(
+            `managed-official-${login}`,
+            this.uiT(
+              "presence.log.usingOfficialTwitchFallback",
+              {},
+              "Managed Twitch API is unavailable. Falling back to your own Twitch app."
+            )
+          );
+          return this.resolveOfficialTwitchActivityData(login);
+        }
+
+        return this.resolveSourceFallback("twitch", err, () => this.buildFallbackActivityData("twitch"));
+      }
+    }
+
+    if (!hasOfficialCredentials) {
+      return this.buildFallbackActivityData("twitch");
+    }
+
+    try {
+      return await this.resolveOfficialTwitchActivityData(login);
+    } catch (err) {
+      return this.resolveSourceFallback("twitch", err, () => this.buildFallbackActivityData("twitch"));
+    }
   }
 
   async yFetch(endpoint, params = {}) {
@@ -860,12 +1178,11 @@ class PresenceService {
       }
     });
 
-    const res = await fetch(url.toString());
-    if (!res.ok) {
-      throw new Error(`YouTube ${endpoint} HTTP ${res.status}`);
-    }
-
-    return res.json();
+    return this.fetchJson(url.toString(), {}, {
+      type: "youtube",
+      service: "YouTube",
+      retries: 2
+    });
   }
 
   parseYouTubeChannelInput(input) {
@@ -1042,7 +1359,7 @@ class PresenceService {
     const liveLabel = this.activityT("source.youtubeLiveLabel", {}, "YouTube Live");
     const actualStartTime = liveVideo?.liveStreamingDetails?.actualStartTime || null;
 
-    return this.buildActivityData({
+    const activityData = this.buildActivityData({
       sourceType: "youtube",
       displayName: channel.displayName || identifier,
       avatarUrl: channel.avatarUrl || "",
@@ -1054,13 +1371,20 @@ class PresenceService {
       startedAt: actualStartTime,
       startedAtUnix: this.unixts(actualStartTime)
     });
+    this.sourceCache.youtubeActivityData = activityData;
+    this.clearSourceWarning();
+    return activityData;
   }
 
   async resolveActivityData(options = {}) {
     const sourceType = this.normalizeSource();
 
     if (sourceType === "youtube") {
-      return this.resolveYouTubeActivityData(options);
+      try {
+        return await this.resolveYouTubeActivityData(options);
+      } catch (err) {
+        return this.resolveSourceFallback("youtube", err, () => this.buildFallbackActivityData("youtube"));
+      }
     }
 
     if (sourceType === "custom") {
@@ -1075,6 +1399,25 @@ class PresenceService {
       ok: true,
       preview: await this.resolveActivityData({ forceSearch: true })
     };
+  }
+
+  async connectDiscordRpc(rpc) {
+    try {
+      await new Promise((resolve, reject) => {
+        rpc.once("ready", resolve);
+        rpc.login({ clientId: this.config.discordAppClientId }).catch(reject);
+      });
+    } catch {
+      throw this.createPresenceError(
+        "discord_unavailable",
+        this.uiT(
+          "presence.error.discordUnavailable",
+          {},
+          "Discord Desktop is not running or Rich Presence could not connect."
+        ),
+        { retryable: false }
+      );
+    }
   }
 
   async testConnections() {
@@ -1095,12 +1438,8 @@ class PresenceService {
     RPC.register(this.config.discordAppClientId);
     const rpc = new RPC.Client({ transport: "ipc" });
 
-    await new Promise((resolve, reject) => {
-      rpc.once("ready", resolve);
-      rpc.login({ clientId: this.config.discordAppClientId }).catch(reject);
-    });
-
     try {
+      await this.connectDiscordRpc(rpc);
       return {
         sourceOk: true,
         discordOk: true,
@@ -1387,10 +1726,16 @@ class PresenceService {
     RPC.register(this.config.discordAppClientId);
     this.rpc = new RPC.Client({ transport: "ipc" });
 
-    await new Promise((resolve, reject) => {
-      this.rpc.once("ready", resolve);
-      this.rpc.login({ clientId: this.config.discordAppClientId }).catch(reject);
-    });
+    try {
+      await this.connectDiscordRpc(this.rpc);
+    } catch (err) {
+      try {
+        this.rpc.destroy();
+      } catch {}
+      this.rpc = null;
+      this.running = false;
+      throw err;
+    }
 
     this.log(this.uiT("presence.log.connected", {}, "Connected to Discord RPC."));
     this.status("Connected");

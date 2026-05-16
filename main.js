@@ -12,7 +12,6 @@ const path = require("path");
 const fs = require("fs");
 const Store = require("electron-store").default;
 const { autoUpdater } = require("electron-updater");
-const fetch = require("node-fetch");
 const { PresenceService } = require("./presence");
 
 const packageJson = require("./package.json");
@@ -906,43 +905,6 @@ function reorderPresets(names) {
 
   store.set("presets", reordered);
   return reordered;
-}
-
-async function getTwitchAppToken(clientId, clientSecret) {
-  const res = await fetch("https://id.twitch.tv/oauth2/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      client_id: clientId,
-      client_secret: clientSecret,
-      grant_type: "client_credentials"
-    })
-  });
-
-  if (!res.ok) {
-    throw new Error(`Twitch token HTTP ${res.status}`);
-  }
-
-  const js = await res.json();
-  return js.access_token;
-}
-
-async function twitchHelix(endpoint, params, clientId, token) {
-  const url = new URL(`https://api.twitch.tv/helix/${endpoint}`);
-  Object.entries(params || {}).forEach(([k, v]) => url.searchParams.set(k, v));
-
-  const res = await fetch(url.toString(), {
-    headers: {
-      "Client-ID": clientId,
-      Authorization: `Bearer ${token}`
-    }
-  });
-
-  if (!res.ok) {
-    throw new Error(`Twitch ${endpoint} HTTP ${res.status}`);
-  }
-
-  return res.json();
 }
 
 function getPreviewResolver(config) {
