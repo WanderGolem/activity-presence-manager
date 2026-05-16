@@ -1,6 +1,6 @@
 {
   "name": "activity-presence-manager",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "description": "Desktop app for managing Discord Rich Presence",
   "main": "main.js",
   "productName": "Activity Presence Manager",

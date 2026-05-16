@@ -165,6 +165,8 @@ el("reloadBtn").addEventListener("click", async () => {
   await window.appApi.reloadWindow();
 });
 
+el("titlebarUpdateBtn").addEventListener("click", installAvailableUpdate);
+
 el("minimizeBtn").addEventListener("click", async () => {
   await window.appApi.minimizeWindow();
 });
@@ -190,7 +192,6 @@ el("importBtn").addEventListener("click", importPresetData);
 el("settingsExportBtn").addEventListener("click", exportAppData);
 el("settingsImportBtn").addEventListener("click", importAppData);
 el("checkUpdatesBtn").addEventListener("click", checkUpdates);
-el("downloadUpdateBtn").addEventListener("click", downloadAvailableUpdate);
 el("installUpdateBtn").addEventListener("click", installAvailableUpdate);
 
 el("createPresetBtn").addEventListener("click", () => {

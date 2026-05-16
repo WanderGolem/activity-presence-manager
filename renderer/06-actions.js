@@ -40,6 +40,10 @@ function formatText(template, replacements = {}) {
   });
 }
 
+function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 function formatUpdaterStatus(state = currentUpdaterState) {
   const status = state?.status || "idle";
   const version = state?.version || "";
@@ -73,20 +77,22 @@ function updateUpdaterUi(state = {}) {
   if (statusText) statusText.textContent = formatUpdaterStatus(currentUpdaterState);
 
   const checkBtn = el("checkUpdatesBtn");
-  const downloadBtn = el("downloadUpdateBtn");
   const installBtn = el("installUpdateBtn");
+  const titlebarUpdateBtn = el("titlebarUpdateBtn");
+  const updateActionVisible = ["available", "downloading", "downloaded", "installing"].includes(currentUpdaterState.status);
+  const canInstall = ["available", "downloaded"].includes(currentUpdaterState.status);
   const isBusy = ["checking", "downloading", "installing"].includes(currentUpdaterState.status);
 
   if (checkBtn) checkBtn.disabled = isBusy;
 
-  if (downloadBtn) {
-    downloadBtn.hidden = !["available", "downloading"].includes(currentUpdaterState.status);
-    downloadBtn.disabled = currentUpdaterState.status !== "available";
+  if (installBtn) {
+    installBtn.hidden = false;
+    installBtn.disabled = !canInstall || isBusy;
   }
 
-  if (installBtn) {
-    installBtn.hidden = currentUpdaterState.status !== "downloaded";
-    installBtn.disabled = currentUpdaterState.status !== "downloaded";
+  if (titlebarUpdateBtn) {
+    titlebarUpdateBtn.hidden = !updateActionVisible;
+    titlebarUpdateBtn.disabled = !canInstall || isBusy;
   }
 }
 
@@ -100,18 +106,30 @@ async function checkUpdates() {
   }
 }
 
-async function downloadAvailableUpdate() {
-  updateUpdaterUi({ status: "downloading", progress: { percent: 0 }, error: "" });
-  const result = await window.appApi.downloadUpdate();
-  if (!result.ok) {
-    updateUpdaterUi(result.state || { status: "error", error: result.error || "update_download_failed" });
-  }
-}
-
 async function installAvailableUpdate() {
-  const result = await window.appApi.installUpdate();
-  if (!result.ok) {
-    updateUpdaterUi(result.state || { status: "error", error: result.error || "update_install_failed" });
+  if (currentUpdaterState.status === "available") {
+    updateUpdaterUi({ status: "downloading", progress: { percent: 0 }, error: "" });
+    const downloadResult = await window.appApi.downloadUpdate();
+    if (!downloadResult.ok) {
+      updateUpdaterUi(downloadResult.state || { status: "error", error: downloadResult.error || "update_download_failed" });
+      return;
+    }
+
+    const start = Date.now();
+    while (Date.now() - start < 30000) {
+      const state = await window.appApi.getUpdaterState();
+      updateUpdaterUi(state);
+      if (state.status === "downloaded") break;
+      if (state.status === "error") return;
+      await wait(500);
+    }
+  }
+
+  if (currentUpdaterState.status !== "downloaded") return;
+
+  const installResult = await window.appApi.installUpdate();
+  if (!installResult.ok) {
+    updateUpdaterUi(installResult.state || { status: "error", error: installResult.error || "update_install_failed" });
   }
 }
 
@@ -279,9 +297,8 @@ async function applyLanguage(lang, activityLanguageSetting = null) {
   setButtonContent("importBtn", t("button.importPreset", "Import preset"), "./assets/icons/import.svg");
   setButtonContent("settingsImportBtn", t("button.importAll", "Import all"), "./assets/icons/import.svg");
   setButtonContent("settingsExportBtn", t("button.exportAll", "Export all"), "./assets/icons/export.svg");
-  setButtonContent("checkUpdatesBtn", t("button.checkUpdates", "Check for updates"), "./assets/icons/testing.svg");
-  setButtonContent("downloadUpdateBtn", t("button.downloadUpdate", "Download update"), "./assets/icons/import.svg");
-  setButtonContent("installUpdateBtn", t("button.installUpdate", "Install update"), "./assets/icons/start.svg");
+  setButtonContent("checkUpdatesBtn", t("button.checkUpdates", "Check for updates"), "./assets/icons/update.svg");
+  setButtonContent("installUpdateBtn", t("button.installUpdate", "Install update"), "./assets/icons/update.svg");
   setButtonContent("createPresetBtn", t("button.createPreset", "Start new preset"), "./assets/icons/new_preset.svg");
   setButtonContent("loadPresetBtn", t("button.loadPreset"));
   setButtonContent("deletePresetBtn", t("button.deletePreset"), "./assets/icons/delete.svg");
@@ -305,8 +322,8 @@ async function applyLanguage(lang, activityLanguageSetting = null) {
     ["settingsImportBtn", t("button.importAll", "Import all")],
     ["settingsExportBtn", t("button.exportAll", "Export all")],
     ["checkUpdatesBtn", t("button.checkUpdates", "Check for updates")],
-    ["downloadUpdateBtn", t("button.downloadUpdate", "Download update")],
     ["installUpdateBtn", t("button.installUpdate", "Install update")],
+    ["titlebarUpdateBtn", t("button.installUpdate", "Install update")],
     ["createPresetBtn", t("button.createPreset", "Start new preset")],
     ["loadPresetBtn", t("button.loadPreset", "Load preset")],
     ["deletePresetBtn", t("button.deletePreset", "Delete preset")],

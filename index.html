@@ -16,6 +16,9 @@
       <div class="titlebar-title" id="windowTitleText">TITLE</div>
 
       <div class="window-controls">
+        <button class="window-btn titlebar-update-btn" id="titlebarUpdateBtn" type="button" hidden>
+          <img src="./assets/icons/update.svg" alt="" aria-hidden="true" />
+        </button>
         <button class="window-btn" id="reloadBtn" type="button">
           <img src="./assets/icons/reload.svg" alt="" aria-hidden="true" />
         </button>
@@ -902,7 +905,6 @@
                         <div class="update-status" id="updateStatusText"></div>
                         <div class="toolbar update-actions">
                           <button class="action btn-test" id="checkUpdatesBtn" type="button"></button>
-                          <button class="action btn-import" id="downloadUpdateBtn" type="button" hidden></button>
                           <button class="action btn-start" id="installUpdateBtn" type="button" hidden></button>
                         </div>
                       </div>
