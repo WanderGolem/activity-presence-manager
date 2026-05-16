@@ -137,6 +137,7 @@ let updaterState = {
   progress: null,
   error: ""
 };
+let pendingAppDataImport = null;
 
 function readJsonSafe(filePath) {
   try {
@@ -828,7 +829,50 @@ function normalizeImportedAppData(data) {
   return {
     data: merged,
     importedPresetCount: presetMerge.importedPresetCount,
-    renamedPresets: presetMerge.renamedPresets
+    renamedPresets: presetMerge.renamedPresets,
+    importedPresetNames: presetMerge.importedPresetNames
+  };
+}
+
+function serializeForCompare(value) {
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
+function createAppDataImportToken() {
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function getImportedSettingKeys(data) {
+  if (!data || typeof data !== "object" || Array.isArray(data)) return [];
+  return Object.keys(data).filter((key) => key !== "presets");
+}
+
+function createAppDataImportPreview(filePath, rawData, imported, validation) {
+  const importedSettingKeys = getImportedSettingKeys(rawData);
+  const changedSettingKeys = importedSettingKeys.filter(
+    (key) => serializeForCompare(store.get(key)) !== serializeForCompare(rawData[key])
+  );
+  const existingPresetCount = Object.keys(getPresets()).length;
+  const finalPresetCount = Object.keys(imported.data.presets || {}).length;
+  const validationErrors = validation?.errors || {};
+
+  return {
+    fileName: path.basename(filePath),
+    settingsImportedCount: importedSettingKeys.length,
+    settingsChangedCount: changedSettingKeys.length,
+    settingsUnchangedCount: Math.max(0, importedSettingKeys.length - changedSettingKeys.length),
+    importedPresetCount: imported.importedPresetCount,
+    importedPresetNames: imported.importedPresetNames,
+    renamedPresetCount: imported.renamedPresets.length,
+    renamedPresets: imported.renamedPresets,
+    existingPresetCount,
+    finalPresetCount,
+    validationOk: validation.ok,
+    validationErrorCount: Object.keys(validationErrors).length
   };
 }
 
@@ -860,10 +904,11 @@ function resolveImportedPresetName(baseName) {
 function mergeImportedPresets(importedPresets, existingPresets = getPresets()) {
   const mergedPresets = { ...existingPresets };
   const renamedPresets = [];
+  const importedPresetNames = [];
   let importedPresetCount = 0;
 
   if (!importedPresets || typeof importedPresets !== "object" || Array.isArray(importedPresets)) {
-    return { presets: mergedPresets, importedPresetCount, renamedPresets };
+    return { presets: mergedPresets, importedPresetCount, renamedPresets, importedPresetNames };
   }
 
   for (const [importedName, importedPreset] of Object.entries(importedPresets)) {
@@ -877,13 +922,14 @@ function mergeImportedPresets(importedPresets, existingPresets = getPresets()) {
 
     mergedPresets[finalName] = importedPreset;
     importedPresetCount += 1;
+    importedPresetNames.push(finalName);
 
     if (finalName !== safeName) {
       renamedPresets.push({ from: safeName, to: finalName });
     }
   }
 
-  return { presets: mergedPresets, importedPresetCount, renamedPresets };
+  return { presets: mergedPresets, importedPresetCount, renamedPresets, importedPresetNames };
 }
 
 function reorderPresets(names) {
@@ -984,7 +1030,7 @@ async function exportAppDataToFile() {
   return { ok: true, filePath };
 }
 
-async function importAppDataFromFile() {
+async function prepareAppDataImportFromFile() {
   const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
     title: t("dialog.importAllTitle", "Import settings and presets"),
     properties: ["openFile"],
@@ -1002,10 +1048,34 @@ async function importAppDataFromFile() {
   const imported = normalizeImportedAppData(payload.data);
   const data = imported.data;
   const validation = validateConfig(data);
+  const token = createAppDataImportToken();
+  const preview = createAppDataImportPreview(filePaths[0], payload.data, imported, validation);
 
+  pendingAppDataImport = {
+    token,
+    imported,
+    validation,
+    preview
+  };
+
+  return {
+    ok: true,
+    token,
+    preview
+  };
+}
+
+async function applyPreparedAppDataImport(token) {
+  if (!pendingAppDataImport || pendingAppDataImport.token !== token) {
+    throw new Error("app_data_import_not_prepared");
+  }
+
+  const { imported, validation } = pendingAppDataImport;
+  const data = imported.data;
   store.set(data);
   applyAutostart(!!data.launchOnStartup);
   rebuildTrayMenu();
+  pendingAppDataImport = null;
 
   if (service && validation.ok) {
     service.applyConfig(buildPresenceConfig(data));
@@ -1022,8 +1092,16 @@ async function importAppDataFromFile() {
     data: store.store,
     validation,
     importedPresetCount: imported.importedPresetCount,
-    renamedPresets: imported.renamedPresets
+    renamedPresets: imported.renamedPresets,
+    importedPresetNames: imported.importedPresetNames
   };
+}
+
+function cancelPreparedAppDataImport(token) {
+  if (!token || pendingAppDataImport?.token === token) {
+    pendingAppDataImport = null;
+  }
+  return { ok: true };
 }
 
 async function exportPresetToFile(name, data) {
@@ -1139,10 +1217,23 @@ app.whenReady().then(async () => {
     }
   });
 
-  ipcMain.handle("settings:export", async () => exportAppDataToFile());
-  ipcMain.handle("settings:import", async () => {
+  const handleAppDataImportPreview = async () => {
     try {
-      return await importAppDataFromFile();
+      return await prepareAppDataImportFromFile();
+    } catch (err) {
+      return {
+        ok: false,
+        error: err.message || "app_data_import_failed"
+      };
+    }
+  };
+
+  ipcMain.handle("settings:export", async () => exportAppDataToFile());
+  ipcMain.handle("settings:import", handleAppDataImportPreview);
+  ipcMain.handle("settings:importPreview", handleAppDataImportPreview);
+  ipcMain.handle("settings:importApply", async (_, token) => {
+    try {
+      return await applyPreparedAppDataImport(token);
     } catch (err) {
       return {
         ok: false,
@@ -1150,6 +1241,7 @@ app.whenReady().then(async () => {
       };
     }
   });
+  ipcMain.handle("settings:importCancel", (_, token) => cancelPreparedAppDataImport(token));
 
   ipcMain.handle("presets:get", () => getPresets());
   ipcMain.handle("presets:validate", (_, data) => validatePresetPayload(data));

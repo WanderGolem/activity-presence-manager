@@ -568,33 +568,146 @@ async function exportAppData() {
   }
 }
 
-async function importAppData() {
-  let result;
-  try {
-    result = await window.appApi.importAppData();
-  } catch (err) {
-    result = { ok: false, error: err?.message || "app_data_import_failed" };
+function createImportPreviewNode(tag, className, text = "") {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text) node.textContent = text;
+  return node;
+}
+
+function appendImportPreviewMetric(container, label, value, hint) {
+  const metric = createImportPreviewNode("div", "import-preview-metric");
+  metric.append(
+    createImportPreviewNode("span", "import-preview-metric-label", label),
+    createImportPreviewNode("strong", "import-preview-metric-value", value),
+    createImportPreviewNode("span", "import-preview-metric-hint", hint)
+  );
+  container.appendChild(metric);
+}
+
+function appendImportPreviewDetail(container, label, value, state = "") {
+  const row = createImportPreviewNode("div", "import-preview-detail");
+  const valueNode = createImportPreviewNode("span", "import-preview-detail-value", value);
+  if (state) valueNode.classList.add(`is-${state}`);
+  row.append(
+    createImportPreviewNode("span", "import-preview-detail-label", label),
+    valueNode
+  );
+  container.appendChild(row);
+}
+
+function renderImportPreviewMessage(container, preview = {}) {
+  const wrapper = createImportPreviewNode("div", "import-preview");
+  const fileRow = createImportPreviewNode("div", "import-preview-file");
+  fileRow.append(
+    createImportPreviewNode("span", "import-preview-file-label", t("importPreview.fileLabel", "File")),
+    createImportPreviewNode("span", "import-preview-file-name", preview.fileName || "-")
+  );
+
+  const summary = createImportPreviewNode("div", "import-preview-summary");
+  appendImportPreviewMetric(
+    summary,
+    t("importPreview.settingsChangedLabel", "Settings"),
+    `${formatNumber(preview.settingsChangedCount || 0)} / ${formatNumber(preview.settingsImportedCount || 0)}`,
+    t("importPreview.settingsChangedHint", "changed values")
+  );
+  appendImportPreviewMetric(
+    summary,
+    t("importPreview.presetsAddedLabel", "Presets"),
+    formatNumber(preview.importedPresetCount || 0),
+    t("importPreview.presetsAddedHint", "will be added")
+  );
+  appendImportPreviewMetric(
+    summary,
+    t("importPreview.presetsTotalLabel", "Afterwards"),
+    formatNumber(preview.finalPresetCount || 0),
+    t("importPreview.presetsTotalHint", "presets total")
+  );
+
+  const details = createImportPreviewNode("div", "import-preview-details");
+  if (preview.renamedPresetCount > 0) {
+    appendImportPreviewDetail(
+      details,
+      t("importPreview.renamedLabel", "Duplicate names"),
+      formatText(t("importPreview.renamedValue", "{count} automatic rename(s)"), {
+        count: formatNumber(preview.renamedPresetCount)
+      }),
+      "warning"
+    );
   }
 
+  appendImportPreviewDetail(
+    details,
+    t("importPreview.validationLabel", "Validation"),
+    preview.validationOk
+      ? t("importPreview.validationOk", "No issues found")
+      : formatText(t("importPreview.validationIssues", "{count} issue(s) found"), {
+          count: formatNumber(preview.validationErrorCount || 0)
+        }),
+    preview.validationOk ? "ok" : "warning"
+  );
+
+  const note = createImportPreviewNode("div", "import-preview-note", t("importPreview.settingsOverwrite", "Imported settings overwrite current settings; presets are merged."));
+
+  wrapper.append(fileRow, summary, details, note);
+  container.appendChild(wrapper);
+}
+
+async function applyImportedAppDataResult(result) {
+  setFormData(result.data);
+  applyThemeMode(result.data.themeMode || result.data.theme || "dark");
+
+  const zoom = Number(result.data.uiZoom || 100);
+  pendingZoomValue = zoom;
+  el("uiZoom").value = String(zoom);
+  updateZoomLabel(zoom);
+  applyZoom(zoom);
+
+  await refreshPresets();
+  await applyLanguage(result.data.language || "en", result.data.activityLanguage || "en");
+  applyPreviewVisibility(typeof result.data.showPreview === "undefined" ? true : !!result.data.showPreview);
+  setPresetEditMode(false);
+
+  clearValidation();
+  addLog(formatText(t("log.appDataImportedWithPreview", "App data imported. Presets added: {count}."), {
+    count: result.importedPresetCount || 0
+  }));
+  schedulePreviewRefresh();
+}
+
+async function importAppData() {
+  let previewResult;
+  try {
+    previewResult = await window.appApi.prepareAppDataImport();
+  } catch (err) {
+    previewResult = { ok: false, error: err?.message || "app_data_import_failed" };
+  }
+
+  if (!previewResult.ok) {
+    if (!previewResult.canceled) {
+      addLog(`${t("log.appDataImportFailed", "App data import failed:")} ${previewResult.error || "app_data_import_failed"}`);
+      setStatus(t("status.error"));
+    }
+    return;
+  }
+
+  const confirmed = await showConfirmModal({
+    title: t("confirm.importAppDataTitle", "Import preview"),
+    renderMessage: (container) => renderImportPreviewMessage(container, previewResult.preview),
+    acceptLabel: t("button.applyImport", "Import now"),
+    cancelLabel: t("button.cancel", "Cancel"),
+    intent: previewResult.preview?.validationOk === false ? "danger" : "warning"
+  });
+
+  if (!confirmed) {
+    await window.appApi.cancelAppDataImport(previewResult.token);
+    return;
+  }
+
+  const result = await window.appApi.applyAppDataImport(previewResult.token);
   if (result.ok) {
-    setFormData(result.data);
-    applyThemeMode(result.data.themeMode || result.data.theme || "dark");
-
-    const zoom = Number(result.data.uiZoom || 100);
-    pendingZoomValue = zoom;
-    el("uiZoom").value = String(zoom);
-    updateZoomLabel(zoom);
-    applyZoom(zoom);
-
-    await refreshPresets();
-    await applyLanguage(result.data.language || "en", result.data.activityLanguage || "en");
-    applyPreviewVisibility(typeof result.data.showPreview === "undefined" ? true : !!result.data.showPreview);
-    setPresetEditMode(false);
-
-    clearValidation();
-    addLog(`${t("log.appDataImported", "App data imported:")} ${result.data.language || ""}`);
-    schedulePreviewRefresh();
-  } else if (!result.canceled) {
+    await applyImportedAppDataResult(result);
+  } else {
     addLog(`${t("log.appDataImportFailed", "App data import failed:")} ${result.error || "app_data_import_failed"}`);
     setStatus(t("status.error"));
   }

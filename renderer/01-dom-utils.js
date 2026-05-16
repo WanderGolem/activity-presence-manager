@@ -111,9 +111,16 @@ function showConfirmModal(options = {}) {
   const acceptLabel = String(options.acceptLabel || t("button.confirm", "Confirm"));
   const cancelLabel = String(options.cancelLabel || t("button.cancel", "Cancel"));
   const intent = String(options.intent || "warning").trim().toLowerCase();
+  const hasCustomMessage = typeof options.renderMessage === "function";
 
   title.textContent = safeTitle;
-  message.textContent = safeMessage;
+  message.replaceChildren();
+  message.classList.toggle("app-confirm-message-rich", hasCustomMessage);
+  if (hasCustomMessage) {
+    options.renderMessage(message);
+  } else {
+    message.textContent = safeMessage;
+  }
   acceptBtn.textContent = acceptLabel;
   cancelBtn.textContent = cancelLabel;
   badge.textContent = intent === "danger" ? "!" : "?";
