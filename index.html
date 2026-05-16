@@ -758,7 +758,7 @@
                 </div>
 
                 <div class="settings-section">
-                  <div class="settings-section-title" id="sectionBehavior"></div>
+                  <div class="settings-section-title" id="sectionPresencePreview"></div>
 
                   <div class="setting-block">
                     <div class="setting-row">
@@ -812,6 +812,32 @@
                   <div class="setting-block">
                     <div class="setting-row">
                       <div class="setting-text">
+                        <div class="setting-title" id="option_autoStartPresence"></div>
+                        <div class="setting-description" id="desc_autoStartPresence"></div>
+                      </div>
+
+                      <div class="setting-control">
+                        <span class="switch">
+                          <input id="autoStartPresence" type="checkbox" />
+                          <span class="slider"></span>
+                        </span>
+                      </div>
+                    </div>
+
+                    <div class="info-box">
+                      <div class="info-box-icon">i</div>
+                      <div id="info_autoStartPresence"></div>
+                    </div>
+                  </div>
+
+                </div>
+
+                <div class="settings-section">
+                  <div class="settings-section-title" id="sectionAppBehavior"></div>
+
+                  <div class="setting-block">
+                    <div class="setting-row">
+                      <div class="setting-text">
                         <div class="setting-title" id="option_launchOnStartup"></div>
                         <div class="setting-description" id="desc_launchOnStartup"></div>
                       </div>
@@ -856,27 +882,10 @@
                       </div>
                     </div>
                   </div>
+                </div>
 
-                  <div class="setting-block">
-                    <div class="setting-row">
-                      <div class="setting-text">
-                        <div class="setting-title" id="option_autoStartPresence"></div>
-                        <div class="setting-description" id="desc_autoStartPresence"></div>
-                      </div>
-
-                      <div class="setting-control">
-                        <span class="switch">
-                          <input id="autoStartPresence" type="checkbox" />
-                          <span class="slider"></span>
-                        </span>
-                      </div>
-                    </div>
-
-                    <div class="info-box">
-                      <div class="info-box-icon">i</div>
-                      <div id="info_autoStartPresence"></div>
-                    </div>
-                  </div>
+                <div class="settings-section">
+                  <div class="settings-section-title" id="sectionUpdatesData"></div>
 
                   <div class="setting-block">
                     <div class="setting-row">
@@ -927,11 +936,12 @@
                     </div>
                   </div>
 
-                  <div class="setting-block">
-                    <div class="warning-box">
-                      <div class="warning-box-icon">!</div>
-                      <div id="hintDiscordRequired"></div>
-                    </div>
+                </div>
+
+                <div class="settings-global-notice">
+                  <div class="warning-box">
+                    <div class="warning-box-icon">!</div>
+                    <div id="hintDiscordRequired"></div>
                   </div>
                 </div>
               </div>

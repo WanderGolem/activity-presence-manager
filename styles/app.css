@@ -1653,6 +1653,10 @@
       margin-top: 0;
     }
 
+    .settings-global-notice {
+      margin-top: 18px;
+    }
+
     .settings-section-title {
       font-size: 13px;
       font-weight: 800;
