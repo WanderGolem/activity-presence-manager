@@ -270,7 +270,6 @@
   "button.editSection": "Bereich bearbeiten",
   "button.lockSection": "Bereich sperren",
   "button.editPreset": "Preset bearbeiten",
-  "button.cancel": "Abbrechen",
   "button.leaveWithoutSaving": "Ohne Speichern verlassen",
   "log.presetEditing": "Preset bearbeiten",
   "log.presetValidationFailed": "Bitte fülle die erforderlichen Preset-Felder aus und korrigiere die markierten Einträge.",
@@ -359,12 +358,12 @@
   "help.tips.step3": "Stream-Bilder sind bei Twitch und YouTube optional, und Discord-Rich-Presence-Bilder sind im Custom-Block ebenfalls optional.",
   "help.tips.step4": "Nutze Presets, wenn du zwischen Twitch-Kanälen, YouTube-Kanälen, Discord-Apps oder verschiedenen Custom-Rich-Presence-Setups wechselst.",
   "help.tips.step5": "Exportiere deine Einstellungen vor größeren Änderungen, damit du immer ein Backup hast.",
-  "help.tips.step6": "Wenn die Oberfläche nach Änderungen hängt oder falsch aussieht, nutze Reload in der Titelleiste oder starte die App einmal neu.",
+  "help.tips.step6": "Alles importieren führt Presets mit deinen bestehenden Presets zusammen und überspringt ungültige Presets, statt gute Presets zu überschreiben.",
   "help.link.twitchConsole": "Twitch Developer Console",
   "help.link.twitchDocs": "Twitch-Anleitung",
   "help.link.twitchForum": "Twitch-Entwicklerforum",
   "help.link.discordPortal": "Discord Developer Portal",
-  "help.link.discordDocs": "Discord-Einstieg",
+  "help.link.discordDocs": "Discord Rich Presence Doku",
   "help.link.discordAppId": "Application ID finden",
   "help.link.discordSupport": "Discord Developer Support",
   "help.link.discordHelp": "Discord Help Center",
@@ -452,5 +451,7 @@
   "field.accentColor": "Akzentfarbe",
   "desc.accentColor": "Wähle die Hauptfarbe für Buttons, aktive Elemente und die Vorschau.",
   "button.resetAccentColor": "Blau wiederherstellen",
-  "tooltip.pickAccentColor": "Akzentfarbe auswählen"
+  "tooltip.pickAccentColor": "Akzentfarbe auswählen",
+  "help.tips.step7": "Im Bereich Updates & Daten kannst du nach Updates suchen, ein gefundenes Update installieren und den Changelog öffnen.",
+  "help.tips.step8": "Wenn die Oberfläche nach Änderungen hängt oder falsch aussieht, nutze Reload in der Titelleiste oder starte die App einmal neu."
 }

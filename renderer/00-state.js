@@ -249,7 +249,7 @@ const HELP_LINKS = {
   youtubeAppGuide: "https://developers.google.com/youtube/registering_an_application",
   discordPortal: "https://discord.com/developers/applications",
   discordAppIdHelp: "https://support-dev.discord.com/hc/en-us/articles/360028717192-Where-can-I-find-my-Application-Team-Server-ID",
-  discordDocs: "https://docs.discord.com/developers/quick-start/getting-started",
+  discordDocs: "https://docs.discord.com/developers/platform/rich-presence",
   discordDevSupport: "https://support-dev.discord.com/hc/en-us",
   discordHelp: "https://support.discord.com/hc/en-us"
 };

@@ -1,4 +1,29 @@
 {
+  "1.5.5": {
+    "date": "2026-06-09",
+    "title": {
+      "de": "Aktualisierte Hilfe",
+      "en": "Updated help section",
+      "ru": "Updated help section"
+    },
+    "notes": {
+      "de": [
+        "Die Hilfe wurde an die aktuelle App-Struktur angepasst.",
+        "Der Discord-Dokumentationslink zeigt jetzt direkt auf die Rich-Presence-Dokumentation.",
+        "Neue Hinweise erklären Updates, Changelog und den sicheren Alles-Import mit Preset-Merge."
+      ],
+      "en": [
+        "The help section was aligned with the current app structure.",
+        "The Discord documentation link now points directly to the Rich Presence documentation.",
+        "New tips explain updates, the changelog, and the safer full import with preset merging."
+      ],
+      "ru": [
+        "The help section was aligned with the current app structure.",
+        "The Discord documentation link now points directly to the Rich Presence documentation.",
+        "New tips explain updates, the changelog, and the safer full import with preset merging."
+      ]
+    }
+  },
   "1.5.4": {
     "date": "2026-06-09",
     "title": {

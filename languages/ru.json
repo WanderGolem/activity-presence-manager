@@ -358,12 +358,12 @@
   "help.tips.step3": "Изображения стрима остаются необязательными для Twitch и YouTube, а изображения Discord Rich Presence тоже необязательны внутри custom-блока.",
   "help.tips.step4": "Используйте пресеты, если переключаетесь между Twitch-каналами, YouTube-каналами, Discord-приложениями или разными настройками Custom Rich Presence.",
   "help.tips.step5": "Экспортируйте настройки перед крупными изменениями, чтобы у вас всегда была резервная копия.",
-  "help.tips.step6": "Если интерфейс завис или выглядит неправильно после изменений, используйте Reload в заголовке окна или перезапустите приложение.",
+  "help.tips.step6": "Импорт всех данных объединяет пресеты с уже существующими и пропускает недействительные пресеты вместо перезаписи хороших.",
   "help.link.twitchConsole": "Twitch Developer Console",
   "help.link.twitchDocs": "Руководство по Twitch",
   "help.link.twitchForum": "Форум разработчиков Twitch",
   "help.link.discordPortal": "Discord Developer Portal",
-  "help.link.discordDocs": "Начало работы с Discord",
+  "help.link.discordDocs": "Документация Discord Rich Presence",
   "help.link.discordAppId": "Найти Application ID",
   "help.link.discordSupport": "Поддержка разработчиков Discord",
   "help.link.discordHelp": "Центр помощи Discord",
@@ -451,5 +451,7 @@
   "field.accentColor": "Акцентный цвет",
   "desc.accentColor": "Выберите основной цвет для кнопок, активных элементов и превью.",
   "button.resetAccentColor": "Вернуть синий",
-  "tooltip.pickAccentColor": "Выбрать акцентный цвет"
+  "tooltip.pickAccentColor": "Выбрать акцентный цвет",
+  "help.tips.step7": "В разделе Updates & data можно проверить обновления, установить найденное обновление и открыть changelog.",
+  "help.tips.step8": "Если интерфейс зависает или выглядит неправильно после изменений, используйте Reload в заголовке окна или перезапустите приложение."
 }

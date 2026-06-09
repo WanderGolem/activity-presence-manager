@@ -151,11 +151,11 @@ function renderHelpContent() {
         t("help.discord.step2", "Give the application a name and optionally upload an icon or description so it looks cleaner in Discord."),
         t("help.discord.step3", "Open General Information and copy the Application ID. Discord also calls it the Client ID."),
         t("help.discord.step4", "Paste that ID into the Discord block in this app."),
-        t("help.discord.step5", "If you want a second Presence button, optionally add your invite or community URL. This field stays optional.")
+        t("help.discord.step5", "If you want image keys to work, upload the art assets in your Discord application first and then enter those keys in this app.")
       ],
       [
         { label: t("help.link.discordPortal", "Discord Developer Portal"), url: HELP_LINKS.discordPortal },
-        { label: t("help.link.discordDocs", "Discord getting started"), url: HELP_LINKS.discordDocs },
+        { label: t("help.link.discordDocs", "Discord Rich Presence docs"), url: HELP_LINKS.discordDocs },
         { label: t("help.link.discordAppId", "Find Application ID"), url: HELP_LINKS.discordAppIdHelp }
       ],
       t("help.discord.note", "You do not need to create a bot token just to use Rich Presence with this app.")
@@ -163,15 +163,15 @@ function renderHelpContent() {
     buildHelpSection(
       "4",
       t("help.usage.title", "How to use the app"),
-      t("help.usage.intro", "Choose a source mode first, then fill only the block that belongs to that mode plus Discord and optional images."),
+      t("help.usage.intro", "Choose the mode first, then fill only the matching blocks plus the Discord Application ID."),
       [
-        t("help.usage.step1", "Open the Source block and choose Twitch Stream, YouTube Stream, or Custom Activity."),
-        t("help.usage.step2", "Fill the matching source block. Twitch and YouTube pull live data automatically, while Custom Activity uses your own text and status."),
-        t("help.usage.step3", "Fill the Discord Application ID and optionally an invite or community URL."),
-        t("help.usage.step4", "Optional image URLs or keys still live in the Images block and work for all modes."),
+        t("help.usage.step1", "Pick Twitch, YouTube, or Custom Rich Presence in the source area at the top of the dashboard."),
+        t("help.usage.step2", "Twitch and YouTube monitor live status automatically. Discord Rich Presence lets you set activity type, details, state, timestamps, images, and buttons yourself."),
+        t("help.usage.step3", "Enter the Discord Application ID in the Discord block."),
+        t("help.usage.step4", "Twitch and YouTube use the Images block. Discord Rich Presence has its own image fields directly inside the custom block."),
         t("help.usage.step5", "Use Test Connection first. After that, save your settings or save a preset if you need multiple setups."),
-        t("help.usage.step6", "Start Presence from the dashboard or enable auto-start in Settings. The preview and stream info area help you check the result first."),
-        t("help.usage.step7", "When you create a preset, the selected source type and all matching Twitch, YouTube, or Custom fields are saved with it.")
+        t("help.usage.step6", "Start Presence from the dashboard or enable auto-start in Settings. The preview and stream info area help you verify the result first."),
+        t("help.usage.step7", "Presets also store the selected mode and all advanced custom Rich Presence fields.")
       ],
       [],
       t("help.usage.note", "Discord desktop must already be running, otherwise Rich Presence cannot be set.")
@@ -200,11 +200,13 @@ function renderHelpContent() {
       t("help.tips.intro", "A few small details help avoid the most common setup mistakes."),
       [
         t("help.tips.step1", "Never share your Twitch Client Secret, YouTube API key, or any private project credentials with anyone."),
-        t("help.tips.step2", "The check interval must still be at least 5 seconds, but YouTube offline checks are internally throttled to be gentler on quota."),
-        t("help.tips.step3", "Large Image, Small Image, and the Discord invite or community URL remain optional in every source mode."),
-        t("help.tips.step4", "Use presets if you switch between Twitch channels, YouTube channels, Discord apps, or custom activities."),
+        t("help.tips.step2", "The check interval must still be at least 5 seconds. YouTube offline checks are additionally throttled internally."),
+        t("help.tips.step3", "Stream images remain optional for Twitch and YouTube, and Discord Rich Presence images remain optional inside the custom block."),
+        t("help.tips.step4", "Use presets if you switch between Twitch channels, YouTube channels, Discord apps, or different custom Rich Presence setups."),
         t("help.tips.step5", "Export your settings before larger changes so you always have a backup."),
-        t("help.tips.step6", "If the interface looks stuck after changes, use Reload in the title bar or restart the app once.")
+        t("help.tips.step6", "Import all merges presets with your existing ones and skips invalid presets instead of overwriting good ones."),
+        t("help.tips.step7", "Use the Updates & data section to check for updates, install a found update, and open the changelog."),
+        t("help.tips.step8", "If the interface looks stuck or wrong after changes, use Reload in the title bar or restart the app once.")
       ]
     )
   ];
