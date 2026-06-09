@@ -32,6 +32,9 @@ contextBridge.exposeInMainWorld("appApi", {
   checkForUpdates: (options) => ipcRenderer.invoke("updater:check", options),
   downloadUpdate: () => ipcRenderer.invoke("updater:download"),
   installUpdate: () => ipcRenderer.invoke("updater:install"),
+  getCurrentChangelog: () => ipcRenderer.invoke("changelog:getCurrent"),
+  getStartupChangelog: () => ipcRenderer.invoke("changelog:getStartup"),
+  markChangelogSeen: (version) => ipcRenderer.invoke("changelog:markSeen", version),
 
   getLanguage: () => ipcRenderer.invoke("i18n:getLanguage"),
   setLanguage: (lang) => ipcRenderer.invoke("i18n:setLanguage", lang),

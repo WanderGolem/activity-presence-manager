@@ -2442,6 +2442,18 @@
       font-weight: 900;
     }
 
+    .app-confirm-badge.is-info {
+      background: color-mix(in srgb, var(--accent) 14%, transparent);
+      border-color: color-mix(in srgb, var(--accent) 36%, transparent);
+      color: var(--accent);
+    }
+
+    .app-confirm-badge.is-danger {
+      background: rgba(242, 63, 67, 0.14);
+      border-color: rgba(242, 63, 67, 0.36);
+      color: #f23f43;
+    }
+
     .app-confirm-copy {
       min-width: 0;
       flex: 1;
@@ -2573,6 +2585,73 @@
       background: rgba(240, 178, 50, 0.08);
       color: var(--text);
       font-size: 12px;
+      font-weight: 700;
+      line-height: 1.45;
+    }
+
+    .changelog-view {
+      display: grid;
+      gap: 12px;
+    }
+
+    .changelog-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .changelog-meta-pill {
+      min-height: 28px;
+      display: inline-flex;
+      align-items: center;
+      padding: 0 10px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text);
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .changelog-list {
+      display: grid;
+      gap: 8px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .changelog-list li {
+      position: relative;
+      min-width: 0;
+      padding: 10px 12px 10px 30px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: rgba(88, 101, 242, 0.08);
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 700;
+      line-height: 1.45;
+    }
+
+    .changelog-list li::before {
+      content: "";
+      position: absolute;
+      left: 12px;
+      top: 16px;
+      width: 6px;
+      height: 6px;
+      border-radius: 999px;
+      background: var(--accent);
+    }
+
+    .changelog-empty {
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.03);
+      color: var(--muted);
+      font-size: 13px;
       font-weight: 700;
       line-height: 1.45;
     }

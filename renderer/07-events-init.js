@@ -192,6 +192,7 @@ el("importBtn").addEventListener("click", importPresetData);
 el("settingsExportBtn").addEventListener("click", exportAppData);
 el("settingsImportBtn").addEventListener("click", importAppData);
 el("checkUpdatesBtn").addEventListener("click", checkUpdates);
+el("showChangelogBtn").addEventListener("click", showUpdateChangelog);
 el("installUpdateBtn").addEventListener("click", installAvailableUpdate);
 
 el("createPresetBtn").addEventListener("click", () => {

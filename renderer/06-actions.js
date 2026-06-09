@@ -40,6 +40,134 @@ function formatText(template, replacements = {}) {
   });
 }
 
+function normalizeChangelogLines(value) {
+  if (Array.isArray(value)) {
+    return value.map((line) => String(line || "").trim()).filter(Boolean);
+  }
+
+  return String(value || "")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<li[^>]*>/gi, "\n")
+    .replace(/<\/li>/gi, "\n")
+    .replace(/<\/p>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .split(/\r?\n/)
+    .map((line) => line.replace(/^#{1,6}\s*/, "").replace(/^[-*]\s+/, "").trim())
+    .filter(Boolean);
+}
+
+function normalizeChangelogData(changelog = {}, fallbackVersion = currentUpdaterState.version || "") {
+  const version = String(changelog.version || fallbackVersion || "").trim();
+  const languageKey = String(currentLanguage || "en").trim().toLowerCase();
+  const languageBase = languageKey.split("-")[0];
+  const localizedTitle =
+    changelog.titleByLanguage?.[languageKey] ||
+    changelog.titleByLanguage?.[languageBase] ||
+    changelog.titleByLanguage?.en ||
+    "";
+  const title = String(localizedTitle || changelog.title || changelog.releaseName || "").trim();
+  const date = String(changelog.date || changelog.releaseDate || "").trim();
+  const localizedNotes =
+    changelog.notesByLanguage?.[languageKey] ||
+    changelog.notesByLanguage?.[languageBase] ||
+    changelog.notesByLanguage?.en ||
+    null;
+  const notes = normalizeChangelogLines(localizedNotes?.length ? localizedNotes : (changelog.notes?.length ? changelog.notes : changelog.releaseNotes));
+
+  return {
+    version,
+    title,
+    date,
+    notes
+  };
+}
+
+function getUpdaterChangelog(state = currentUpdaterState) {
+  const info = state?.info;
+  if (!info?.version && !info?.releaseNotes && !info?.releaseName) return null;
+
+  return normalizeChangelogData({
+    version: info.version || state.version || "",
+    title: info.releaseName || "",
+    date: info.releaseDate || "",
+    releaseNotes: info.releaseNotes || ""
+  }, state.version || "");
+}
+
+function createChangelogNode(tag, className, text = "") {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text) node.textContent = text;
+  return node;
+}
+
+function renderChangelogMessage(container, changelog = {}) {
+  const data = normalizeChangelogData(changelog);
+  const wrapper = createChangelogNode("div", "changelog-view");
+  const meta = createChangelogNode("div", "changelog-meta");
+
+  if (data.title) {
+    meta.appendChild(createChangelogNode("span", "changelog-meta-pill", data.title));
+  }
+
+  if (data.date) {
+    meta.appendChild(createChangelogNode("span", "changelog-meta-pill", data.date));
+  }
+
+  if (meta.childElementCount) wrapper.appendChild(meta);
+
+  if (data.notes.length) {
+    const list = createChangelogNode("ul", "changelog-list");
+    data.notes.forEach((line) => {
+      list.appendChild(createChangelogNode("li", "", line));
+    });
+    wrapper.appendChild(list);
+  } else {
+    wrapper.appendChild(createChangelogNode(
+      "div",
+      "changelog-empty",
+      t("changelog.noNotes", "No changelog text is available for this version.")
+    ));
+  }
+
+  container.appendChild(wrapper);
+}
+
+async function showChangelogModal(changelog = {}, options = {}) {
+  const data = normalizeChangelogData(changelog);
+  const version = data.version || currentUpdaterState.version || "";
+
+  await showConfirmModal({
+    title: formatText(t("changelog.title", "What's new in version {version}"), { version }),
+    renderMessage: (container) => renderChangelogMessage(container, data),
+    acceptLabel: t("button.close", "Close"),
+    showCancel: false,
+    intent: "info"
+  });
+
+  if (options.markSeen) {
+    await window.appApi.markChangelogSeen(version);
+  }
+}
+
+async function showUpdateChangelog() {
+  const updateChangelog = getUpdaterChangelog(currentUpdaterState);
+  if (updateChangelog?.notes?.length || updateChangelog?.title) {
+    await showChangelogModal(updateChangelog);
+    return;
+  }
+
+  const result = await window.appApi.getCurrentChangelog();
+  await showChangelogModal(result?.changelog || { version: result?.version || currentUpdaterState.version || "" });
+}
+
+async function maybeShowStartupChangelog() {
+  const result = await window.appApi.getStartupChangelog();
+  if (!result?.ok || !result.shouldShow || !result.changelog) return;
+
+  await showChangelogModal(result.changelog, { markSeen: true });
+}
+
 function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -121,6 +249,7 @@ function updateUpdaterUi(state = {}) {
   if (statusText) statusText.textContent = formatUpdaterStatus(currentUpdaterState);
 
   const checkBtn = el("checkUpdatesBtn");
+  const changelogBtn = el("showChangelogBtn");
   const installBtn = el("installUpdateBtn");
   const titlebarUpdateBtn = el("titlebarUpdateBtn");
   const progressWrap = el("updateProgress");
@@ -145,6 +274,11 @@ function updateUpdaterUi(state = {}) {
   if (checkBtn) {
     checkBtn.disabled = isBusy;
     setButtonContent("checkUpdatesBtn", getUpdaterCheckButtonLabel(status), "./assets/icons/update.svg");
+  }
+
+  if (changelogBtn) {
+    changelogBtn.disabled = isBusy;
+    setButtonContent("showChangelogBtn", t("button.showChangelog", "Changelog"), "./assets/icons/help.svg");
   }
 
   if (installBtn) {
@@ -370,6 +504,7 @@ async function applyLanguage(lang, activityLanguageSetting = null) {
   setButtonContent("settingsImportBtn", t("button.importAll", "Import all"), "./assets/icons/import.svg");
   setButtonContent("settingsExportBtn", t("button.exportAll", "Export all"), "./assets/icons/export.svg");
   setButtonContent("checkUpdatesBtn", t("button.checkUpdates", "Check for updates"), "./assets/icons/update.svg");
+  setButtonContent("showChangelogBtn", t("button.showChangelog", "Changelog"), "./assets/icons/help.svg");
   setButtonContent("installUpdateBtn", t("button.installUpdate", "Install update"), "./assets/icons/update.svg");
   setButtonContent("createPresetBtn", t("button.createPreset", "Start new preset"), "./assets/icons/new_preset.svg");
   setButtonContent("loadPresetBtn", t("button.loadPreset"));
@@ -394,6 +529,7 @@ async function applyLanguage(lang, activityLanguageSetting = null) {
     ["settingsImportBtn", t("button.importAll", "Import all")],
     ["settingsExportBtn", t("button.exportAll", "Export all")],
     ["checkUpdatesBtn", t("button.checkUpdates", "Check for updates")],
+    ["showChangelogBtn", t("button.showChangelog", "Changelog")],
     ["installUpdateBtn", t("button.installUpdate", "Install update")],
     ["titlebarUpdateBtn", t("button.installUpdate", "Install update")],
     ["createPresetBtn", t("button.createPreset", "Start new preset")],
@@ -434,6 +570,8 @@ async function applyLanguage(lang, activityLanguageSetting = null) {
   el("desc_autoCheckForUpdates").textContent = t("desc.autoCheckForUpdates", "Checks for app updates when the installed app starts.");
   el("label_updates").textContent = t("field.updates", "Updates");
   el("desc_updates").textContent = t("desc.updates", "Installers are delivered through GitHub Releases.");
+  el("label_changelog").textContent = t("field.changelog", "Changelog");
+  el("desc_changelog").textContent = t("desc.changelog", "Shows what changed in the installed version or in a found update.");
   updateUpdaterUi(currentUpdaterState);
 
   el("hintDiscordRequired").textContent = t("hint.discordRequired");
@@ -753,6 +891,7 @@ async function init() {
   }
 
   await refreshPreview();
+  await maybeShowStartupChangelog();
 }
 
 window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {

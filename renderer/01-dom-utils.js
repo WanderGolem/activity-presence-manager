@@ -112,6 +112,7 @@ function showConfirmModal(options = {}) {
   const cancelLabel = String(options.cancelLabel || t("button.cancel", "Cancel"));
   const intent = String(options.intent || "warning").trim().toLowerCase();
   const hasCustomMessage = typeof options.renderMessage === "function";
+  const showCancel = options.showCancel !== false;
 
   title.textContent = safeTitle;
   message.replaceChildren();
@@ -123,7 +124,10 @@ function showConfirmModal(options = {}) {
   }
   acceptBtn.textContent = acceptLabel;
   cancelBtn.textContent = cancelLabel;
-  badge.textContent = intent === "danger" ? "!" : "?";
+  cancelBtn.hidden = !showCancel;
+  badge.textContent = intent === "danger" ? "!" : intent === "info" ? "i" : "?";
+  badge.classList.toggle("is-info", intent === "info");
+  badge.classList.toggle("is-danger", intent === "danger");
   acceptBtn.classList.toggle("btn-stop", intent === "danger");
   acceptBtn.classList.toggle("btn-save", intent !== "danger");
 

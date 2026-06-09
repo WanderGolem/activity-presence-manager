@@ -24,6 +24,7 @@ const APP_DISPLAY_NAME =
 const APM_FILE_EXTENSION = "apm";
 const APM_FORMAT_ID = "activity-presence-manager";
 const APM_FORMAT_VERSION = 1;
+const CHANGELOG_FILE = path.join(__dirname, "changelog.json");
 
 const DEFAULT_LANGUAGE = "en";
 const DEFAULT_THEME = "dark";
@@ -117,6 +118,7 @@ const store = new Store({
     theme: DEFAULT_THEME,
     accentColor: DEFAULT_ACCENT_COLOR,
     uiZoom: DEFAULT_UI_ZOOM,
+    lastSeenChangelogVersion: "",
 
     presets: {}
   }
@@ -145,6 +147,120 @@ function readJsonSafe(filePath) {
   } catch {
     return null;
   }
+}
+
+function normalizeReleaseNotes(notes) {
+  if (Array.isArray(notes)) {
+    return notes
+      .map((entry) => {
+        if (typeof entry === "string") return entry;
+        if (entry && typeof entry === "object") return entry.note || entry.text || entry.content || "";
+        return "";
+      })
+      .filter(Boolean)
+      .join("\n");
+  }
+
+  return typeof notes === "string" ? notes : "";
+}
+
+function normalizeChangelogEntry(version, entry) {
+  if (!entry) return null;
+
+  if (typeof entry === "string") {
+    return {
+      version,
+      title: "",
+      date: "",
+      notes: [entry]
+    };
+  }
+
+  if (Array.isArray(entry)) {
+    return {
+      version,
+      title: "",
+      date: "",
+      notes: entry.map((line) => String(line || "").trim()).filter(Boolean)
+    };
+  }
+
+  if (typeof entry !== "object") return null;
+
+  const releaseNotes = normalizeReleaseNotes(entry.releaseNotes);
+  const notesByLanguage = {};
+  const rawNotes = entry.notes || releaseNotes;
+  const titleByLanguage = {};
+
+  if (entry.title && typeof entry.title === "object" && !Array.isArray(entry.title)) {
+    for (const [lang, title] of Object.entries(entry.title)) {
+      const safeTitle = String(title || "").trim();
+      if (safeTitle) titleByLanguage[String(lang || "").trim().toLowerCase()] = safeTitle;
+    }
+  }
+
+  if (rawNotes && typeof rawNotes === "object" && !Array.isArray(rawNotes)) {
+    for (const [lang, localizedNotes] of Object.entries(rawNotes)) {
+      notesByLanguage[String(lang || "").trim().toLowerCase()] = normalizeReleaseNotes(localizedNotes)
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean);
+    }
+  }
+
+  const notes = Object.keys(notesByLanguage).length
+    ? (notesByLanguage[DEFAULT_LANGUAGE] || notesByLanguage.de || Object.values(notesByLanguage)[0] || [])
+    : Array.isArray(rawNotes)
+      ? rawNotes.map((line) => String(line || "").trim()).filter(Boolean)
+      : normalizeReleaseNotes(rawNotes)
+          .split(/\r?\n/)
+          .map((line) => line.trim())
+          .filter(Boolean);
+
+  return {
+    version,
+    title: Object.keys(titleByLanguage).length
+      ? (titleByLanguage[DEFAULT_LANGUAGE] || titleByLanguage.de || Object.values(titleByLanguage)[0] || "")
+      : String(entry.title || "").trim(),
+    titleByLanguage,
+    date: String(entry.date || "").trim(),
+    notes,
+    notesByLanguage
+  };
+}
+
+function getLocalChangelog(version = packageJson.version) {
+  const changelog = readJsonSafe(CHANGELOG_FILE) || {};
+  const entry = changelog[version] || changelog.versions?.[version] || null;
+  return normalizeChangelogEntry(version, entry);
+}
+
+function getCurrentChangelog() {
+  return {
+    ok: true,
+    changelog: getLocalChangelog(packageJson.version),
+    version: packageJson.version
+  };
+}
+
+function getStartupChangelog() {
+  const version = packageJson.version;
+  const lastSeenVersion = String(store.get("lastSeenChangelogVersion", "") || "");
+  const changelog = getLocalChangelog(version);
+
+  return {
+    ok: true,
+    shouldShow: !!changelog && lastSeenVersion !== version,
+    changelog,
+    version,
+    lastSeenVersion
+  };
+}
+
+function markChangelogSeen(version = packageJson.version) {
+  const safeVersion = String(version || packageJson.version).trim() || packageJson.version;
+  store.set("lastSeenChangelogVersion", safeVersion);
+  return { ok: true, version: safeVersion };
 }
 
 function getBuiltInLanguagesDir() {
@@ -377,7 +493,7 @@ function normalizeUpdateInfo(info) {
     version: info.version || "",
     releaseName: info.releaseName || "",
     releaseDate: info.releaseDate || "",
-    releaseNotes: typeof info.releaseNotes === "string" ? info.releaseNotes : "",
+    releaseNotes: normalizeReleaseNotes(info.releaseNotes),
     stagingPercentage: info.stagingPercentage || null
   };
 }
@@ -1352,6 +1468,9 @@ app.whenReady().then(async () => {
   ipcMain.handle("updater:check", (_, options) => checkForUpdates(options || {}));
   ipcMain.handle("updater:download", () => downloadUpdate());
   ipcMain.handle("updater:install", () => installDownloadedUpdate());
+  ipcMain.handle("changelog:getCurrent", () => getCurrentChangelog());
+  ipcMain.handle("changelog:getStartup", () => getStartupChangelog());
+  ipcMain.handle("changelog:markSeen", (_, version) => markChangelogSeen(version));
 
   ipcMain.handle("window:reload", () => {
     if (mainWindow && !mainWindow.isDestroyed()) {

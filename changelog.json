@@ -1,0 +1,52 @@
+{
+  "1.5.1": {
+    "date": "2026-06-09",
+    "title": {
+      "de": "Changelog-Anzeige",
+      "en": "Changelog display",
+      "ru": "Отображение списка изменений"
+    },
+    "notes": {
+      "de": [
+        "Beim ersten Start nach einem App-Update wird automatisch ein Changelog angezeigt.",
+        "Im Update-Bereich kann der Changelog jederzeit manuell geöffnet werden.",
+        "Wenn ein GitHub Release Notes enthält, werden diese beim Update-Suchen angezeigt."
+      ],
+      "en": [
+        "A changelog is shown automatically on the first app start after an update.",
+        "The changelog can be opened manually from the update section at any time.",
+        "When a GitHub release contains release notes, they are shown after checking for updates."
+      ],
+      "ru": [
+        "После обновления при первом запуске приложения автоматически показывается список изменений.",
+        "Список изменений можно вручную открыть в разделе обновлений в любое время.",
+        "Если релиз GitHub содержит заметки к выпуску, они отображаются после проверки обновлений."
+      ]
+    }
+  },
+  "1.5.0": {
+    "date": "2026-05-16",
+    "title": {
+      "de": "Import-Vorschau",
+      "en": "Import preview",
+      "ru": "Предпросмотр импорта"
+    },
+    "notes": {
+      "de": [
+        "Alles importieren zeigt vor dem Speichern eine übersichtliche Import-Vorschau.",
+        "Bestehende Presets bleiben erhalten; neue Presets werden hinzugefügt.",
+        "Doppelte Preset-Namen werden automatisch umbenannt und in der Vorschau angezeigt."
+      ],
+      "en": [
+        "Import all now shows a clear import preview before anything is saved.",
+        "Existing presets stay in place; new presets are added.",
+        "Duplicate preset names are renamed automatically and shown in the preview."
+      ],
+      "ru": [
+        "Импорт всех данных теперь показывает понятный предпросмотр перед сохранением.",
+        "Существующие пресеты сохраняются, новые пресеты добавляются.",
+        "Повторяющиеся имена пресетов автоматически переименовываются и показываются в предпросмотре."
+      ]
+    }
+  }
+}
