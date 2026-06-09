@@ -123,8 +123,6 @@ class PresenceService {
       "customDisplayName",
       "customTitle",
       "customGame",
-      "customViewers",
-      "customStatus",
       "customStreamUrl",
       "customActivityType",
       "customTimestampMode",
@@ -847,7 +845,6 @@ class PresenceService {
     createdAt = null,
     channelLanguage = "",
     tags = [],
-    isBrandedContent = null
   }) {
     return {
       sourceType,
@@ -875,8 +872,7 @@ class PresenceService {
       broadcasterType: this.s(broadcasterType, "", 32),
       createdAt: createdAt || null,
       channelLanguage: this.s(channelLanguage, "", 16),
-      tags: Array.isArray(tags) ? tags.map((tag) => this.s(tag, "", 32)).filter(Boolean).slice(0, 10) : [],
-      isBrandedContent: typeof isBrandedContent === "boolean" ? isBrandedContent : null
+      tags: Array.isArray(tags) ? tags.map((tag) => this.s(tag, "", 32)).filter(Boolean).slice(0, 10) : []
     };
   }
 
@@ -1033,9 +1029,6 @@ class PresenceService {
       createdAt: data.created_at || null,
       channelLanguage: data.language || "",
       tags: Array.isArray(data.tags) ? data.tags : [],
-      isBrandedContent: typeof data.is_branded_content === "boolean"
-        ? data.is_branded_content
-        : null
     });
     this.setCachedActivityData("twitch", activityData);
     this.clearSourceWarning();
@@ -1114,10 +1107,30 @@ class PresenceService {
           title: c.title || null,
           game: c.game_name || null,
           language: c.broadcaster_language || "",
-          tags: Array.isArray(c.tags) ? c.tags : [],
-          isBrandedContent: typeof c.is_branded_content === "boolean" ? c.is_branded_content : null
+          tags: Array.isArray(c.tags) ? c.tags : []
         }
-      : { title: null, game: null, language: "", tags: [], isBrandedContent: null };
+      : { title: null, game: null, language: "", tags: [] };
+  }
+
+  async cleanupFailedStart() {
+    this.running = false;
+
+    if (this.interval) {
+      clearInterval(this.interval);
+      this.interval = null;
+    }
+
+    await this.clearPresenceRaw();
+
+    if (this.rpc) {
+      try {
+        this.rpc.destroy();
+      } catch {}
+      this.rpc = null;
+    }
+
+    this.lastKey = null;
+    this.activityStartedAtUnix = null;
   }
 
   async resolveOfficialTwitchActivityData(login, options = {}) {
@@ -1131,14 +1144,12 @@ class PresenceService {
     let channelGame = "";
     let channelLanguage = "";
     let channelTags = [];
-    let isBrandedContent = null;
     try {
       const channel = await this.getChannelInfo(user.id);
       channelTitle = channel.title || "";
       channelGame = channel.game || "";
       channelLanguage = channel.language || "";
       channelTags = channel.tags || [];
-      isBrandedContent = channel.isBrandedContent;
     } catch {
       // ignore channel fallback errors
     }
@@ -1160,8 +1171,7 @@ class PresenceService {
       broadcasterType: user.broadcaster_type || user.type || "",
       createdAt: user.created_at || null,
       channelLanguage,
-      tags: channelTags,
-      isBrandedContent
+      tags: channelTags
     });
     this.setCachedActivityData("twitch", activityData);
     this.clearSourceWarning();
@@ -1783,37 +1793,32 @@ class PresenceService {
 
     try {
       await this.connectDiscordRpc(this.rpc);
+      this.log(this.uiT("presence.log.connected", {}, "Connected to Discord RPC."));
+      this.status("Connected");
+
+      const initialData = await this.resolveActivityData();
+      if (this.normalizeSource() === "custom") {
+        this.log(this.uiT(
+          "presence.log.customReady",
+          { name: initialData.streamerDisplayName },
+          `Custom activity ready: ${initialData.streamerDisplayName}`
+        ));
+      } else {
+        this.log(this.uiT("presence.log.watching", {
+          name: initialData.streamerDisplayName,
+          seconds: this.checkMs / 1000
+        }, `Monitoring ${initialData.streamerDisplayName} every ${this.checkMs / 1000}s.`));
+      }
+
+      this.status("Running");
+
+      await this.applyActivityData(initialData, { forceApply: true });
+
+      this.restartTickInterval();
     } catch (err) {
-      try {
-        this.rpc.destroy();
-      } catch {}
-      this.rpc = null;
-      this.running = false;
+      await this.cleanupFailedStart();
       throw err;
     }
-
-    this.log(this.uiT("presence.log.connected", {}, "Connected to Discord RPC."));
-    this.status("Connected");
-
-    const initialData = await this.resolveActivityData();
-    if (this.normalizeSource() === "custom") {
-      this.log(this.uiT(
-        "presence.log.customReady",
-        { name: initialData.streamerDisplayName },
-        `Custom activity ready: ${initialData.streamerDisplayName}`
-      ));
-    } else {
-      this.log(this.uiT("presence.log.watching", {
-        name: initialData.streamerDisplayName,
-        seconds: this.checkMs / 1000
-      }, `Monitoring ${initialData.streamerDisplayName} every ${this.checkMs / 1000}s.`));
-    }
-
-    this.status("Running");
-
-    await this.applyActivityData(initialData, { forceApply: true });
-
-    this.restartTickInterval();
   }
 
   async stop() {

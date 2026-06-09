@@ -662,7 +662,6 @@ function updateStreamInfoLabels(source) {
     el("label_streamInfoLanguage").textContent = t("streamInfo.language", "Language");
     el("label_streamInfoTags").textContent = t("streamInfo.tags", "Tags");
     el("label_streamInfoCreatedAt").textContent = t("streamInfo.createdAt", "Account Created");
-    el("label_streamInfoBrandedContent").textContent = t("streamInfo.brandedContent", "Branded Content");
     el("label_streamInfoDescription").textContent = t("streamInfo.description", "Description");
   }
 }
@@ -688,12 +687,6 @@ function formatBroadcasterType(value) {
   const normalized = String(value || "").trim().toLowerCase();
   if (!normalized) return t("streamInfo.regularBroadcaster", "Regular");
   return normalized.charAt(0).toUpperCase() + normalized.slice(1);
-}
-
-function formatBooleanInfo(value) {
-  if (value === true) return t("streamInfo.yes", "Yes");
-  if (value === false) return t("streamInfo.no", "No");
-  return "-";
 }
 
 function formatStreamTags(tags) {
@@ -790,7 +783,6 @@ function renderStreamInfo(data) {
     setStreamInfoValue("streamInfoLanguageValue", String(preview.channelLanguage || "-").toUpperCase());
     setStreamInfoValue("streamInfoTagsValue", formatStreamTags(preview.tags));
     setStreamInfoValue("streamInfoCreatedAtValue", formatStreamInfoDate(preview.createdAt));
-    setStreamInfoValue("streamInfoBrandedContentValue", formatBooleanInfo(preview.isBrandedContent));
     setStreamInfoValue("streamInfoDescriptionValue", preview.channelDescription || "-");
   }
 }

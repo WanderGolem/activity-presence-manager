@@ -204,6 +204,7 @@ let activeSidebarPreset = "";
 let appInitComplete = false;
 let pendingStartupChangelog = null;
 let startupChangelogShown = false;
+let startupChangelogOpening = false;
 
 let previewMode = "offline";
 let previewAutoMode = false;

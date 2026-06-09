@@ -136,6 +136,18 @@ function renderChangelogMessage(container, changelog = {}) {
 async function showChangelogModal(changelog = {}, options = {}) {
   const data = normalizeChangelogData(changelog);
   const version = data.version || currentUpdaterState.version || "";
+  const requiredModalIds = [
+    "appConfirmModal",
+    "appConfirmTitle",
+    "appConfirmMessage",
+    "appConfirmCancelBtn",
+    "appConfirmAcceptBtn",
+    "appConfirmBadge"
+  ];
+
+  if (!requiredModalIds.every((id) => !!el(id))) {
+    return { shown: false, version };
+  }
 
   await showConfirmModal({
     title: formatText(t("changelog.title", "What's new in version {version}"), { version }),
@@ -148,17 +160,36 @@ async function showChangelogModal(changelog = {}, options = {}) {
   if (options.markSeen) {
     await window.appApi.markChangelogSeen(version);
   }
+
+  return { shown: true, version };
 }
 
 async function showPendingStartupChangelog() {
-  if (!appInitComplete || startupChangelogShown || !pendingStartupChangelog?.shouldShow || !pendingStartupChangelog.changelog) {
+  if (
+    !appInitComplete ||
+    startupChangelogShown ||
+    startupChangelogOpening ||
+    !pendingStartupChangelog?.shouldShow ||
+    !pendingStartupChangelog.changelog
+  ) {
     return;
   }
 
   const payload = pendingStartupChangelog;
   pendingStartupChangelog = null;
-  startupChangelogShown = true;
-  await showChangelogModal(payload.changelog, { markSeen: true });
+  startupChangelogOpening = true;
+
+  try {
+    const result = await showChangelogModal(payload.changelog, { markSeen: true });
+
+    if (result?.shown) {
+      startupChangelogShown = true;
+    } else {
+      pendingStartupChangelog = payload;
+    }
+  } finally {
+    startupChangelogOpening = false;
+  }
 }
 
 function queueStartupChangelog(payload) {
@@ -791,6 +822,17 @@ function renderImportPreviewMessage(container, preview = {}) {
     );
   }
 
+  if (preview.invalidPresetCount > 0) {
+    appendImportPreviewDetail(
+      details,
+      t("importPreview.invalidPresetsLabel", "Skipped presets"),
+      formatText(t("importPreview.invalidPresetsValue", "{count} invalid preset(s)"), {
+        count: formatNumber(preview.invalidPresetCount)
+      }),
+      "warning"
+    );
+  }
+
   appendImportPreviewDetail(
     details,
     t("importPreview.validationLabel", "Validation"),
@@ -827,6 +869,11 @@ async function applyImportedAppDataResult(result) {
   addLog(formatText(t("log.appDataImportedWithPreview", "App data imported. Presets added: {count}."), {
     count: result.importedPresetCount || 0
   }));
+  if (Array.isArray(result.invalidPresets) && result.invalidPresets.length) {
+    addLog(formatText(t("log.appDataImportSkippedPresets", "Skipped invalid presets: {count}."), {
+      count: result.invalidPresets.length
+    }));
+  }
   schedulePreviewRefresh();
 }
 
@@ -892,55 +939,58 @@ function applyActivityPreviewData(activity) {
 }
 
 async function init() {
-  const settings = await window.appApi.getSettings();
-  const lang = settings.language || (await window.appApi.getLanguage()) || "en";
-  const maxInfo = await window.appApi.isWindowMaximized();
-  const running = await window.appApi.isRunning();
+  try {
+    const settings = await window.appApi.getSettings();
+    const lang = settings.language || (await window.appApi.getLanguage()) || "en";
+    const maxInfo = await window.appApi.isWindowMaximized();
+    const running = await window.appApi.isRunning();
 
-  isMaximized = !!maxInfo.maximized;
-  updateMaximizeButton();
+    isMaximized = !!maxInfo.maximized;
+    updateMaximizeButton();
 
-  setFormData(settings);
-  applyThemeMode(settings.themeMode || settings.theme || "dark");
+    setFormData(settings);
+    applyThemeMode(settings.themeMode || settings.theme || "dark");
 
-  const zoom = Number(settings.uiZoom || 100);
-  pendingZoomValue = zoom;
-  el("uiZoom").value = String(zoom);
-  updateZoomLabel(zoom);
-  applyZoom(zoom);
+    const zoom = Number(settings.uiZoom || 100);
+    pendingZoomValue = zoom;
+    el("uiZoom").value = String(zoom);
+    updateZoomLabel(zoom);
+    applyZoom(zoom);
 
-  await refreshPresets();
-  await applyLanguage(lang, settings.activityLanguage || "en");
-  applyPreviewVisibility(typeof settings.showPreview === "undefined" ? true : !!settings.showPreview);
-  updateUpdaterUi(await window.appApi.getUpdaterState());
+    await refreshPresets();
+    await applyLanguage(lang, settings.activityLanguage || "en");
+    applyPreviewVisibility(typeof settings.showPreview === "undefined" ? true : !!settings.showPreview);
+    updateUpdaterUi(await window.appApi.getUpdaterState());
 
-  setActivePanel("dashboard");
-  updateCollapseButton();
-  setPresetEditMode(false);
-  setPreviewPresenceStartedAt(running.running ? running.startedAt : null);
+    setActivePanel("dashboard");
+    updateCollapseButton();
+    setPresetEditMode(false);
+    setPreviewPresenceStartedAt(running.running ? running.startedAt : null);
 
-  setStatus(running.running ? t("status.running") : t("status.ready"));
-  await validateAndRender();
+    setStatus(running.running ? t("status.running") : t("status.ready"));
+    await validateAndRender();
 
-  if (running.running) {
-    setPreviewAutoMode(true);
-  } else {
-    setPreviewAutoMode(false);
-    previewMode = "offline";
-    el("previewLiveSwitch").checked = false;
-  }
-
-  if (running.running) {
-    if (running.activity) {
-      applyActivityPreviewData(running.activity);
+    if (running.running) {
+      setPreviewAutoMode(true);
     } else {
-      await refreshPreview();
+      setPreviewAutoMode(false);
+      previewMode = "offline";
+      el("previewLiveSwitch").checked = false;
     }
-  } else {
-    applyActivityPreviewData(null);
+
+    if (running.running) {
+      if (running.activity) {
+        applyActivityPreviewData(running.activity);
+      } else {
+        await refreshPreview();
+      }
+    } else {
+      applyActivityPreviewData(null);
+    }
+  } finally {
+    appInitComplete = true;
+    await maybeShowStartupChangelog().catch(() => {});
   }
-  appInitComplete = true;
-  await maybeShowStartupChangelog();
 }
 
 window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {

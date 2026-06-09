@@ -1,4 +1,38 @@
 {
+  "1.5.4": {
+    "date": "2026-06-09",
+    "title": {
+      "de": "Robuster Start-Changelog",
+      "en": "More reliable startup changelog",
+      "ru": "More reliable startup changelog"
+    },
+    "notes": {
+      "de": [
+        "Der Changelog nach einem Update wird jetzt auch dann abgefragt, wenn ein anderer Startschritt vorher fehlschlaegt.",
+        "Eine Version wird erst als gesehen gespeichert, wenn der Changelog-Dialog wirklich geoeffnet werden konnte.",
+        "Die Changelog-Datei wird im Installer extra als Resource mitgeliefert und robuster geladen.",
+        "Fehlgeschlagene Presence-Starts raeumen Discord RPC jetzt sauber auf.",
+        "Ungueltige Presets werden beim Alles-Import uebersprungen und in der Import-Vorschau gemeldet.",
+        "Branded Content wurde aus den Stream-Informationen entfernt."
+      ],
+      "en": [
+        "The changelog after an update is now checked even if another startup step fails first.",
+        "A version is only marked as seen after the changelog dialog could actually be opened.",
+        "The changelog file is shipped as an extra installer resource and loaded more reliably.",
+        "Failed Presence starts now clean up Discord RPC properly.",
+        "Invalid presets are skipped during full import and shown in the import preview.",
+        "Branded Content was removed from the stream information."
+      ],
+      "ru": [
+        "The changelog after an update is now checked even if another startup step fails first.",
+        "A version is only marked as seen after the changelog dialog could actually be opened.",
+        "The changelog file is shipped as an extra installer resource and loaded more reliably.",
+        "Failed Presence starts now clean up Discord RPC properly.",
+        "Invalid presets are skipped during full import and shown in the import preview.",
+        "Branded Content was removed from the stream information."
+      ]
+    }
+  },
   "1.5.3": {
     "date": "2026-06-09",
     "title": {

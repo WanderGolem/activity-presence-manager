@@ -24,7 +24,7 @@ const APP_DISPLAY_NAME =
 const APM_FILE_EXTENSION = "apm";
 const APM_FORMAT_ID = "activity-presence-manager";
 const APM_FORMAT_VERSION = 1;
-const CHANGELOG_FILE = path.join(__dirname, "changelog.json");
+const CHANGELOG_FILE_NAME = "changelog.json";
 
 const DEFAULT_LANGUAGE = "en";
 const DEFAULT_THEME = "dark";
@@ -160,6 +160,26 @@ function readJsonSafe(filePath) {
   }
 }
 
+function getChangelogFileCandidates() {
+  const candidates = [];
+
+  if (process.resourcesPath) {
+    candidates.push(path.join(process.resourcesPath, CHANGELOG_FILE_NAME));
+  }
+
+  candidates.push(path.join(__dirname, CHANGELOG_FILE_NAME));
+  return [...new Set(candidates)];
+}
+
+function readLocalChangelog() {
+  for (const filePath of getChangelogFileCandidates()) {
+    const changelog = readJsonSafe(filePath);
+    if (changelog && typeof changelog === "object") return changelog;
+  }
+
+  return {};
+}
+
 function normalizeReleaseNotes(notes) {
   if (Array.isArray(notes)) {
     return notes
@@ -241,7 +261,7 @@ function normalizeChangelogEntry(version, entry) {
 }
 
 function getLocalChangelog(version = packageJson.version) {
-  const changelog = readJsonSafe(CHANGELOG_FILE) || {};
+  const changelog = readLocalChangelog();
   const entry = changelog[version] || changelog.versions?.[version] || null;
   return normalizeChangelogEntry(version, entry);
 }
@@ -344,11 +364,6 @@ function normalizeTwitchApiMode(mode, fallback = DEFAULT_TWITCH_API_MODE) {
   return safeMode === "official" ? "official" : DEFAULT_TWITCH_API_MODE;
 }
 
-function normalizeCustomStatus(status, fallback = "offline") {
-  const safeStatus = String(status || fallback).trim().toLowerCase();
-  return safeStatus === "live" ? "live" : "offline";
-}
-
 function getTranslations(lang = store.get("language", DEFAULT_LANGUAGE)) {
   return loadLocaleFile(normalizeLanguageCode(lang));
 }
@@ -370,7 +385,6 @@ function buildPresenceConfig(config = {}) {
     ...config,
     activitySource: normalizeActivitySource(config.activitySource, store.get("activitySource", "twitch")),
     twitchApiMode: normalizeTwitchApiMode(config.twitchApiMode, store.get("twitchApiMode", DEFAULT_TWITCH_API_MODE)),
-    customStatus: normalizeCustomStatus(config.customStatus, store.get("customStatus", "offline")),
     language: uiLanguage,
     i18n: getTranslations(uiLanguage),
     activityLanguage,
@@ -978,6 +992,7 @@ function normalizeImportedAppData(data) {
   return {
     data: merged,
     importedPresetCount: presetMerge.importedPresetCount,
+    invalidPresets: presetMerge.invalidPresets,
     renamedPresets: presetMerge.renamedPresets,
     importedPresetNames: presetMerge.importedPresetNames
   };
@@ -1008,6 +1023,8 @@ function createAppDataImportPreview(filePath, rawData, imported, validation) {
   const existingPresetCount = Object.keys(getPresets()).length;
   const finalPresetCount = Object.keys(imported.data.presets || {}).length;
   const validationErrors = validation?.errors || {};
+  const invalidPresetCount = imported.invalidPresets.length;
+  const validationErrorCount = Object.keys(validationErrors).length + invalidPresetCount;
 
   return {
     fileName: path.basename(filePath),
@@ -1016,12 +1033,14 @@ function createAppDataImportPreview(filePath, rawData, imported, validation) {
     settingsUnchangedCount: Math.max(0, importedSettingKeys.length - changedSettingKeys.length),
     importedPresetCount: imported.importedPresetCount,
     importedPresetNames: imported.importedPresetNames,
+    invalidPresetCount,
+    invalidPresets: imported.invalidPresets,
     renamedPresetCount: imported.renamedPresets.length,
     renamedPresets: imported.renamedPresets,
     existingPresetCount,
     finalPresetCount,
-    validationOk: validation.ok,
-    validationErrorCount: Object.keys(validationErrors).length
+    validationOk: validation.ok && invalidPresetCount === 0,
+    validationErrorCount
   };
 }
 
@@ -1052,12 +1071,13 @@ function resolveImportedPresetName(baseName) {
 
 function mergeImportedPresets(importedPresets, existingPresets = getPresets()) {
   const mergedPresets = { ...existingPresets };
+  const invalidPresets = [];
   const renamedPresets = [];
   const importedPresetNames = [];
   let importedPresetCount = 0;
 
   if (!importedPresets || typeof importedPresets !== "object" || Array.isArray(importedPresets)) {
-    return { presets: mergedPresets, importedPresetCount, renamedPresets, importedPresetNames };
+    return { presets: mergedPresets, importedPresetCount, invalidPresets, renamedPresets, importedPresetNames };
   }
 
   for (const [importedName, importedPreset] of Object.entries(importedPresets)) {
@@ -1067,9 +1087,20 @@ function mergeImportedPresets(importedPresets, existingPresets = getPresets()) {
       importedName,
       t("preset.importedFallbackName", "Imported preset")
     );
+    const normalizedPreset = getPresetPayload(importedPreset);
+    const validation = validatePresetPayload(normalizedPreset);
+
+    if (!validation.ok) {
+      invalidPresets.push({
+        name: safeName,
+        errors: validation.errors
+      });
+      continue;
+    }
+
     const finalName = resolveUniquePresetName(safeName, mergedPresets);
 
-    mergedPresets[finalName] = importedPreset;
+    mergedPresets[finalName] = normalizedPreset;
     importedPresetCount += 1;
     importedPresetNames.push(finalName);
 
@@ -1078,7 +1109,7 @@ function mergeImportedPresets(importedPresets, existingPresets = getPresets()) {
     }
   }
 
-  return { presets: mergedPresets, importedPresetCount, renamedPresets, importedPresetNames };
+  return { presets: mergedPresets, importedPresetCount, invalidPresets, renamedPresets, importedPresetNames };
 }
 
 function reorderPresets(names) {
@@ -1244,6 +1275,7 @@ async function applyPreparedAppDataImport(token) {
     data: store.store,
     validation,
     importedPresetCount: imported.importedPresetCount,
+    invalidPresets: imported.invalidPresets,
     renamedPresets: imported.renamedPresets,
     importedPresetNames: imported.importedPresetNames
   };
