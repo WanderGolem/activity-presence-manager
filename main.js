@@ -274,6 +274,15 @@ function markChangelogSeen(version = packageJson.version) {
   return { ok: true, version: safeVersion };
 }
 
+function sendStartupChangelog() {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+
+  const payload = getStartupChangelog();
+  if (!payload.shouldShow || !payload.changelog) return;
+
+  mainWindow.webContents.send("changelog:startup", payload);
+}
+
 function getBuiltInLanguagesDir() {
   const devPath = path.join(__dirname, "languages");
   const prodPath = path.join(process.resourcesPath, "languages");
@@ -724,6 +733,7 @@ function createWindow() {
     mainWindow.webContents.send("app:title", APP_DISPLAY_NAME);
     mainWindow.webContents.send("updater:status", updaterState);
     sendWindowState();
+    setTimeout(sendStartupChangelog, 600);
   });
 
   mainWindow.on("close", (event) => {

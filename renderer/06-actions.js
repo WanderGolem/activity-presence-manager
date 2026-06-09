@@ -150,6 +150,24 @@ async function showChangelogModal(changelog = {}, options = {}) {
   }
 }
 
+async function showPendingStartupChangelog() {
+  if (!appInitComplete || startupChangelogShown || !pendingStartupChangelog?.shouldShow || !pendingStartupChangelog.changelog) {
+    return;
+  }
+
+  const payload = pendingStartupChangelog;
+  pendingStartupChangelog = null;
+  startupChangelogShown = true;
+  await showChangelogModal(payload.changelog, { markSeen: true });
+}
+
+function queueStartupChangelog(payload) {
+  if (!payload?.shouldShow || !payload.changelog || startupChangelogShown) return;
+
+  pendingStartupChangelog = payload;
+  showPendingStartupChangelog().catch(() => {});
+}
+
 async function showUpdateChangelog() {
   const updateChangelog = getUpdaterChangelog(currentUpdaterState);
   if (updateChangelog?.notes?.length || updateChangelog?.title) {
@@ -163,9 +181,10 @@ async function showUpdateChangelog() {
 
 async function maybeShowStartupChangelog() {
   const result = await window.appApi.getStartupChangelog();
-  if (!result?.ok || !result.shouldShow || !result.changelog) return;
+  if (!result?.ok) return;
 
-  await showChangelogModal(result.changelog, { markSeen: true });
+  queueStartupChangelog(result);
+  await showPendingStartupChangelog();
 }
 
 function wait(ms) {
@@ -920,6 +939,7 @@ async function init() {
   } else {
     applyActivityPreviewData(null);
   }
+  appInitComplete = true;
   await maybeShowStartupChangelog();
 }
 
@@ -970,6 +990,7 @@ window.appApi.onStatus((status) => {
   setStatus(status);
 });
 window.appApi.onActivity((activity) => applyActivityPreviewData(activity));
+window.appApi.onStartupChangelog((payload) => queueStartupChangelog(payload));
 window.appApi.onUpdaterStatus((state) => updateUpdaterUi(state));
 
 window.appApi.onWindowMaximized((value) => {

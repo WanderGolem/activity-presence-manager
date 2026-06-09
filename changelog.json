@@ -1,4 +1,29 @@
 {
+  "1.5.3": {
+    "date": "2026-06-09",
+    "title": {
+      "de": "Changelog-Startanzeige",
+      "en": "Startup changelog display",
+      "ru": "Показ списка изменений при запуске"
+    },
+    "notes": {
+      "de": [
+        "Der Changelog nach einem Update wird jetzt robuster beim Fensterstart ausgelöst.",
+        "Wenn das Changelog-Event vor Ende der App-Initialisierung ankommt, wird es zwischengespeichert und danach angezeigt.",
+        "Doppelte Changelog-Dialoge beim Start werden verhindert."
+      ],
+      "en": [
+        "The changelog after an update is now triggered more reliably when the window starts.",
+        "If the changelog event arrives before app initialization finishes, it is queued and shown afterwards.",
+        "Duplicate startup changelog dialogs are prevented."
+      ],
+      "ru": [
+        "Список изменений после обновления теперь надежнее показывается при запуске окна.",
+        "Если событие списка изменений приходит до завершения инициализации приложения, оно ставится в очередь и показывается после нее.",
+        "Повторные диалоги списка изменений при запуске предотвращаются."
+      ]
+    }
+  },
   "1.5.2": {
     "date": "2026-06-09",
     "title": {

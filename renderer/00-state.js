@@ -201,6 +201,9 @@ let isMaximized = false;
 let appTitleFromMain = "Activity Presence Manager";
 let activePanelName = "dashboard";
 let activeSidebarPreset = "";
+let appInitComplete = false;
+let pendingStartupChangelog = null;
+let startupChangelogShown = false;
 
 let previewMode = "offline";
 let previewAutoMode = false;
