@@ -242,6 +242,10 @@ function refreshPreviewDuration() {
   el("previewState").style.display = duration ? "block" : "none";
 }
 async function refreshPreview() {
+  if (el("showPreview") && !el("showPreview").checked) {
+    return;
+  }
+
   const form = getFormData();
 
   try {
@@ -273,6 +277,10 @@ async function refreshPreview() {
 }
 
 function schedulePreviewRefresh() {
+  if (el("showPreview") && !el("showPreview").checked) {
+    return;
+  }
+
   if (previewFetchTimer) clearTimeout(previewFetchTimer);
   previewFetchTimer = setTimeout(() => {
     refreshPreview().catch(() => {});

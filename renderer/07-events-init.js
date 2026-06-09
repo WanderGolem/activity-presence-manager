@@ -112,8 +112,6 @@ el("previewLiveSwitch").addEventListener("change", async (e) => {
   } else {
     renderPreview(getPreviewFallbackData());
   }
-
-  await refreshPreview();
 });
 
 el("previewStreamBtn").addEventListener("click", async () => {
@@ -384,6 +382,9 @@ el("uiZoom").addEventListener("mouseup", async () => {
   node.addEventListener("change", async () => {
     if (id === "showPreview") {
       applyPreviewVisibility(node.checked);
+      if (node.checked) {
+        schedulePreviewRefresh();
+      }
     }
     await saveSettings();
   });

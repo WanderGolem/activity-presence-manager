@@ -638,7 +638,6 @@ async function testSettings() {
   if (result.ok) {
     addLog(`${t("log.testSuccess")} ${result.result.streamerDisplayName}`);
     setStatus(t("status.testSuccess"));
-    schedulePreviewRefresh();
   } else if (result.validation) {
     showValidation(result.validation.errors || {});
     addLog(t("log.validationFailed"));
@@ -668,7 +667,6 @@ async function startPresence() {
     addLog(t("log.started"));
     setStatus(t("status.running"));
     setPreviewAutoMode(true);
-    await refreshPreview();
   } else if (result.validation) {
     showValidation(result.validation.errors || {});
     addLog(t("log.validationFailed"));
@@ -689,7 +687,7 @@ async function stopPresence() {
     setPreviewAutoMode(false);
     previewMode = "offline";
     el("previewLiveSwitch").checked = false;
-    await refreshPreview();
+    applyActivityPreviewData(null);
   } else {
     addLog(`${t("log.testFailed")} ${result.error}`);
     setStatus(t("status.error"));
@@ -851,6 +849,29 @@ async function importAppData() {
   }
 }
 
+function applyActivityPreviewData(activity) {
+  if (!activity) {
+    previewLiveData = null;
+    renderPreview(getPreviewFallbackData());
+    renderStreamInfo(getStreamInfoFallbackData());
+    return;
+  }
+
+  previewLiveData = activity;
+
+  if (previewAutoMode) {
+    previewMode = activity.live ? "live" : "offline";
+    el("previewLiveSwitch").checked = activity.live;
+  }
+
+  const previewData = previewAutoMode
+    ? activity
+    : { ...activity, live: previewMode === "live" };
+
+  renderPreview(previewData);
+  renderStreamInfo(activity);
+}
+
 async function init() {
   const settings = await window.appApi.getSettings();
   const lang = settings.language || (await window.appApi.getLanguage()) || "en";
@@ -890,7 +911,15 @@ async function init() {
     el("previewLiveSwitch").checked = false;
   }
 
-  await refreshPreview();
+  if (running.running) {
+    if (running.activity) {
+      applyActivityPreviewData(running.activity);
+    } else {
+      await refreshPreview();
+    }
+  } else {
+    applyActivityPreviewData(null);
+  }
   await maybeShowStartupChangelog();
 }
 
@@ -910,7 +939,6 @@ window.appApi.onStatus((status) => {
     setStatus(t("streamInfo.live", "Live"));
     previewMode = "live";
     el("previewLiveSwitch").checked = true;
-    refreshPreview().catch(() => {});
     return;
   }
 
@@ -920,7 +948,6 @@ window.appApi.onStatus((status) => {
     setStatus(t("streamInfo.offline", "Offline"));
     previewMode = "offline";
     el("previewLiveSwitch").checked = false;
-    refreshPreview().catch(() => {});
     return;
   }
 
@@ -936,12 +963,13 @@ window.appApi.onStatus((status) => {
     setPreviewAutoMode(false);
     previewMode = "offline";
     el("previewLiveSwitch").checked = false;
-    refreshPreview().catch(() => {});
+    applyActivityPreviewData(null);
     return setStatus(t("status.stopped"));
   }
 
   setStatus(status);
 });
+window.appApi.onActivity((activity) => applyActivityPreviewData(activity));
 window.appApi.onUpdaterStatus((state) => updateUpdaterUi(state));
 
 window.appApi.onWindowMaximized((value) => {

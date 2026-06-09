@@ -1,4 +1,32 @@
 {
+  "1.5.2": {
+    "date": "2026-06-09",
+    "title": {
+      "de": "Weniger API-Calls",
+      "en": "Fewer API calls",
+      "ru": "Меньше API-запросов"
+    },
+    "notes": {
+      "de": [
+        "Presence, Vorschau und Statusanzeige verwenden bereits geladene Stream-Daten wieder.",
+        "Beim Start der Presence wird die Quelle nicht mehr doppelt abgefragt.",
+        "Nicht Presence-relevante Einstellungen wie Theme oder Zoom lösen keine Stream-API-Abfrage mehr aus.",
+        "Eine ausgeblendete Vorschau plant keine Preview-API-Abfragen mehr."
+      ],
+      "en": [
+        "Presence, preview, and status display now reuse already loaded stream data.",
+        "Starting Presence no longer queries the source twice.",
+        "Settings that do not affect Presence, such as theme or zoom, no longer trigger stream API requests.",
+        "A hidden preview no longer schedules preview API requests."
+      ],
+      "ru": [
+        "Presence, превью и отображение статуса теперь повторно используют уже загруженные данные стрима.",
+        "При запуске Presence источник больше не запрашивается дважды.",
+        "Настройки, не влияющие на Presence, например тема или масштаб, больше не вызывают запросы к stream API.",
+        "Скрытое превью больше не планирует API-запросы для предпросмотра."
+      ]
+    }
+  },
   "1.5.1": {
     "date": "2026-06-09",
     "title": {

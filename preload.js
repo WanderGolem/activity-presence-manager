@@ -51,6 +51,7 @@ contextBridge.exposeInMainWorld("appApi", {
 
   onLog: (callback) => ipcRenderer.on("presence:log", (_, msg) => callback(msg)),
   onStatus: (callback) => ipcRenderer.on("presence:status", (_, status) => callback(status)),
+  onActivity: (callback) => ipcRenderer.on("presence:activity", (_, activity) => callback(activity)),
   onUpdaterStatus: (callback) => ipcRenderer.on("updater:status", (_, status) => callback(status)),
   onWindowMaximized: (callback) => ipcRenderer.on("window:maximized", (_, value) => callback(value)),
   onAppTitle: (callback) => ipcRenderer.on("app:title", (_, value) => callback(value))

@@ -68,6 +68,16 @@ const PRESET_FIELDS = [
   "smallImageOfflineUrl"
 ];
 
+const PRESENCE_CONFIG_FIELDS = [
+  ...PRESET_FIELDS,
+  "checkIntervalSec",
+  "activityLanguage",
+  "language",
+  "useDefaultStreamStatusImage"
+];
+
+const PRESENCE_REFRESH_FIELDS = PRESENCE_CONFIG_FIELDS.filter((field) => field !== "checkIntervalSec");
+
 const store = new Store({
   name: "config",
   defaults: {
@@ -129,6 +139,7 @@ let tray = null;
 let service = null;
 let previewResolver = null;
 let presenceStartedAt = null;
+let lastPresenceActivity = null;
 let isQuitting = false;
 let updaterInitialized = false;
 let updaterState = {
@@ -484,6 +495,18 @@ function sendStatus(status) {
   if (normalized.includes("offline")) return setTrayState("offline");
   if (normalized.includes("error") || normalized.includes("fehler")) return setTrayState("error");
   setTrayState("idle");
+}
+
+function sendActivity(activity) {
+  lastPresenceActivity = activity || null;
+
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send("presence:activity", lastPresenceActivity);
+  }
+}
+
+function hasConfigFieldChanges(previous, next, fields) {
+  return fields.some((field) => serializeForCompare(previous?.[field]) !== serializeForCompare(next?.[field]));
 }
 
 function normalizeUpdateInfo(info) {
@@ -1076,7 +1099,8 @@ function getPreviewResolver(config) {
     previewResolver = new PresenceService({
       config: nextConfig,
       onLog: () => {},
-      onStatus: () => {}
+      onStatus: () => {},
+      onActivity: () => {}
     });
   } else {
     previewResolver.applyConfig(nextConfig);
@@ -1109,7 +1133,8 @@ async function startPresenceInternal(config) {
   service = new PresenceService({
     config: buildPresenceConfig(config),
     onLog: sendLog,
-    onStatus: sendStatus
+    onStatus: sendStatus,
+    onActivity: sendActivity
   });
 
   try {
@@ -1129,6 +1154,7 @@ async function stopPresenceInternal() {
     service = null;
   }
   presenceStartedAt = null;
+  sendActivity(null);
   sendStatus(t("status.stopped", "Stopped"));
 }
 
@@ -1288,25 +1314,30 @@ app.whenReady().then(async () => {
 
   ipcMain.handle("settings:get", () => store.store);
   ipcMain.handle("settings:save", async (_, data) => {
+    const previousData = { ...store.store };
     const validation = validateConfig(data);
+    const presenceConfigChanged = !!service && validation.ok && hasConfigFieldChanges(previousData, data, PRESENCE_CONFIG_FIELDS);
+    const shouldRefreshPresence = presenceConfigChanged && hasConfigFieldChanges(previousData, data, PRESENCE_REFRESH_FIELDS);
 
     store.set(data);
     applyAutostart(!!data.launchOnStartup);
 
-    if (service && validation.ok) {
+    if (presenceConfigChanged) {
       service.applyConfig(buildPresenceConfig(data));
 
-      try {
-        await service.refreshActivity();
-      } catch (err) {
-        sendLog(`Presence refresh error: ${err.message}`);
+      if (shouldRefreshPresence) {
+        try {
+          await service.refreshActivity();
+        } catch (err) {
+          sendLog(`Presence refresh error: ${err.message}`);
+        }
       }
     }
 
     return {
       ok: true,
       validation,
-      presenceUpdated: !!service && validation.ok
+      presenceUpdated: presenceConfigChanged
     };
   });
   ipcMain.handle("settings:validate", (_, data) => validateConfig(data));
@@ -1323,7 +1354,8 @@ app.whenReady().then(async () => {
       const tempService = new PresenceService({
         config: buildPresenceConfig(config),
         onLog: sendLog,
-        onStatus: sendStatus
+        onStatus: sendStatus,
+        onActivity: () => {}
       });
 
       const result = await tempService.testConnections();
@@ -1462,7 +1494,11 @@ app.whenReady().then(async () => {
     }
   });
 
-  ipcMain.handle("presence:isRunning", () => ({ running: !!service, startedAt: presenceStartedAt }));
+  ipcMain.handle("presence:isRunning", () => ({
+    running: !!service,
+    startedAt: presenceStartedAt,
+    activity: lastPresenceActivity
+  }));
 
   ipcMain.handle("updater:getState", () => updaterState);
   ipcMain.handle("updater:check", (_, options) => checkForUpdates(options || {}));

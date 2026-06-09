@@ -11,10 +11,11 @@ const RETRY_DELAY_MS = 600;
 const RETRYABLE_HTTP_STATUS = new Set([408, 429, 500, 502, 503, 504, 520, 522, 524]);
 
 class PresenceService {
-  constructor({ config, onLog, onStatus }) {
+  constructor({ config, onLog, onStatus, onActivity }) {
     this.config = {};
     this.onLog = onLog || (() => {});
     this.onStatus = onStatus || (() => {});
+    this.onActivity = onActivity || (() => {});
     this.rpc = null;
     this.interval = null;
     this.lastKey = null;
@@ -83,8 +84,10 @@ class PresenceService {
     this.sourceCache = {
       twitchUser: null,
       twitchActivityData: null,
+      twitchActivityFetchedAt: 0,
       youtubeChannel: null,
       youtubeActivityData: null,
+      youtubeActivityFetchedAt: 0,
       youtubeLiveVideoId: "",
       youtubeNextOfflineCheckAt: 0
     };
@@ -96,6 +99,10 @@ class PresenceService {
 
   status(msg) {
     this.onStatus(msg);
+  }
+
+  activity(data) {
+    this.onActivity(data);
   }
 
   applyConfig(config = {}) {
@@ -137,7 +144,11 @@ class PresenceService {
       "smallImageLiveUrl",
       "smallImageLiveKey",
       "smallImageOfflineUrl",
-      "smallImageOfflineKey"
+      "smallImageOfflineKey",
+      "discordInviteUrl",
+      "activityLanguage",
+      "language",
+      "useDefaultStreamStatusImage"
     ];
 
     const shouldResetCache = resetKeys.some((key) => String(previous[key] || "") !== String(nextConfig[key] || ""));
@@ -607,8 +618,33 @@ class PresenceService {
     return Math.max(5, parseInt(this.config.checkIntervalSec, 10) || 30) * 1000;
   }
 
+  get apiCacheMs() {
+    return this.checkMs;
+  }
+
   get youtubeOfflineCheckMs() {
     return Math.max(this.checkMs, YOUTUBE_OFFLINE_SEARCH_MIN_MS);
+  }
+
+  getCachedActivityData(sourceType, options = {}) {
+    if (options.forceSearch) return null;
+
+    const cacheKey = `${sourceType}ActivityData`;
+    const fetchedAtKey = `${sourceType}ActivityFetchedAt`;
+    const cached = this.sourceCache[cacheKey];
+    const fetchedAt = Number(this.sourceCache[fetchedAtKey] || 0);
+
+    if (!cached || !fetchedAt) return null;
+    return Date.now() - fetchedAt < this.apiCacheMs ? cached : null;
+  }
+
+  setCachedActivityData(sourceType, data) {
+    const cacheKey = `${sourceType}ActivityData`;
+    const fetchedAtKey = `${sourceType}ActivityFetchedAt`;
+
+    this.sourceCache[cacheKey] = data;
+    this.sourceCache[fetchedAtKey] = Date.now();
+    return data;
   }
 
   getConfiguredActivityStartUnix() {
@@ -968,7 +1004,10 @@ class PresenceService {
     return json;
   }
 
-  async resolveManagedTwitchActivityData(login) {
+  async resolveManagedTwitchActivityData(login, options = {}) {
+    const cached = this.getCachedActivityData("twitch", options);
+    if (cached) return cached;
+
     const data = await this.fetchManagedTwitchStatus(login);
     const displayName = this.s(data.display_name || data.channel || login, login || "Streamer", 64);
     const streamUrl = this.isUrl(data.url) ? data.url : `https://twitch.tv/${login}`;
@@ -998,7 +1037,7 @@ class PresenceService {
         ? data.is_branded_content
         : null
     });
-    this.sourceCache.twitchActivityData = activityData;
+    this.setCachedActivityData("twitch", activityData);
     this.clearSourceWarning();
     return activityData;
   }
@@ -1081,7 +1120,10 @@ class PresenceService {
       : { title: null, game: null, language: "", tags: [], isBrandedContent: null };
   }
 
-  async resolveOfficialTwitchActivityData(login) {
+  async resolveOfficialTwitchActivityData(login, options = {}) {
+    const cached = this.getCachedActivityData("twitch", options);
+    if (cached) return cached;
+
     const user = await this.getTwitchUser();
     const stream = await this.getStream(user.id);
 
@@ -1121,12 +1163,12 @@ class PresenceService {
       tags: channelTags,
       isBrandedContent
     });
-    this.sourceCache.twitchActivityData = activityData;
+    this.setCachedActivityData("twitch", activityData);
     this.clearSourceWarning();
     return activityData;
   }
 
-  async resolveTwitchActivityData() {
+  async resolveTwitchActivityData(options = {}) {
     const login = this.s(this.config.streamerLogin, "", 64);
     if (!login) {
       return this.buildFallbackActivityData("twitch");
@@ -1138,7 +1180,7 @@ class PresenceService {
 
     if (this.normalizeTwitchApiMode() !== "official") {
       try {
-        return await this.resolveManagedTwitchActivityData(login);
+        return await this.resolveManagedTwitchActivityData(login, options);
       } catch (err) {
         if (hasOfficialCredentials && this.isRetryableError(err)) {
           this.logSourceWarningOnce(
@@ -1149,7 +1191,7 @@ class PresenceService {
               "Managed Twitch API is unavailable. Falling back to your own Twitch app."
             )
           );
-          return this.resolveOfficialTwitchActivityData(login);
+          return this.resolveOfficialTwitchActivityData(login, options);
         }
 
         return this.resolveSourceFallback("twitch", err, () => this.buildFallbackActivityData("twitch"));
@@ -1161,7 +1203,7 @@ class PresenceService {
     }
 
     try {
-      return await this.resolveOfficialTwitchActivityData(login);
+      return await this.resolveOfficialTwitchActivityData(login, options);
     } catch (err) {
       return this.resolveSourceFallback("twitch", err, () => this.buildFallbackActivityData("twitch"));
     }
@@ -1344,6 +1386,9 @@ class PresenceService {
   }
 
   async resolveYouTubeActivityData(options = {}) {
+    const cached = this.getCachedActivityData("youtube", options);
+    if (cached) return cached;
+
     const identifier = this.s(this.config.youtubeChannel, "", 256);
     const apiKey = this.s(this.config.youtubeApiKey, "", 256);
 
@@ -1371,7 +1416,7 @@ class PresenceService {
       startedAt: actualStartTime,
       startedAtUnix: this.unixts(actualStartTime)
     });
-    this.sourceCache.youtubeActivityData = activityData;
+    this.setCachedActivityData("youtube", activityData);
     this.clearSourceWarning();
     return activityData;
   }
@@ -1397,7 +1442,7 @@ class PresenceService {
   async resolvePreviewData() {
     return {
       ok: true,
-      preview: await this.resolveActivityData({ forceSearch: true })
+      preview: await this.resolveActivityData()
     };
   }
 
@@ -1664,6 +1709,42 @@ class PresenceService {
     }
   }
 
+  reportResolvedActivity(data) {
+    if (data.sourceType === "custom") {
+      this.status("Running");
+      if (this.normalizeCustomTimestampMode(data.timestampMode) !== "clock") {
+        this.log(this.uiT(
+          "presence.log.customApplied",
+          { name: data.streamerDisplayName },
+          `Custom activity updated: ${data.streamerDisplayName}`
+        ));
+      }
+    } else if (data.live) {
+      this.status("Live");
+      this.log(this.uiT("presence.log.liveDetected", {
+        name: data.streamerDisplayName,
+        title: data.title || "untitled"
+      }, `Live detected: ${data.streamerDisplayName} | ${data.title || "untitled"}`));
+    } else {
+      this.status("Offline");
+      this.log(this.uiT("presence.log.offlineDetected", { name: data.streamerDisplayName }, `Offline detected: ${data.streamerDisplayName}`));
+    }
+  }
+
+  async applyActivityData(data, options = {}) {
+    const key = this.getPresenceKey(data);
+    const shouldApply = options.forceApply || key !== this.lastKey;
+
+    if (shouldApply) {
+      await this.applyResolvedActivity(data);
+      this.lastKey = key;
+      this.reportResolvedActivity(data);
+    }
+
+    this.activity(data);
+    return shouldApply;
+  }
+
   async clearPresenceRaw() {
     if (!this.rpc) return;
     try {
@@ -1676,44 +1757,18 @@ class PresenceService {
 
     try {
       const data = await this.resolveActivityData();
-      const key = this.getPresenceKey(data);
-
-      if (key !== this.lastKey) {
-        await this.applyResolvedActivity(data);
-        this.lastKey = key;
-
-        if (data.sourceType === "custom") {
-          this.status("Running");
-          if (this.normalizeCustomTimestampMode(data.timestampMode) !== "clock") {
-            this.log(this.uiT(
-              "presence.log.customApplied",
-              { name: data.streamerDisplayName },
-              `Custom activity updated: ${data.streamerDisplayName}`
-            ));
-          }
-        } else if (data.live) {
-          this.status("Live");
-          this.log(this.uiT("presence.log.liveDetected", {
-            name: data.streamerDisplayName,
-            title: data.title || "untitled"
-          }, `Live detected: ${data.streamerDisplayName} | ${data.title || "untitled"}`));
-        } else {
-          this.status("Offline");
-          this.log(this.uiT("presence.log.offlineDetected", { name: data.streamerDisplayName }, `Offline detected: ${data.streamerDisplayName}`));
-        }
-      }
+      await this.applyActivityData(data);
     } catch (err) {
       this.status("Error");
       this.log(this.uiT("presence.log.tickError", { message: err.message }, `Tick error: ${err.message}`));
     }
   }
 
-  async refreshActivity() {
+  async refreshActivity(options = {}) {
     if (!this.running || !this.rpc) return;
 
-    const data = await this.resolveActivityData({ forceSearch: true });
-    this.lastKey = this.getPresenceKey(data);
-    await this.applyResolvedActivity(data);
+    const data = await this.resolveActivityData(options);
+    await this.applyActivityData(data, { forceApply: true });
   }
 
   async start() {
@@ -1740,7 +1795,7 @@ class PresenceService {
     this.log(this.uiT("presence.log.connected", {}, "Connected to Discord RPC."));
     this.status("Connected");
 
-    const initialData = await this.resolveActivityData({ forceSearch: true });
+    const initialData = await this.resolveActivityData();
     if (this.normalizeSource() === "custom") {
       this.log(this.uiT(
         "presence.log.customReady",
@@ -1756,7 +1811,7 @@ class PresenceService {
 
     this.status("Running");
 
-    await this.tick();
+    await this.applyActivityData(initialData, { forceApply: true });
 
     this.restartTickInterval();
   }
